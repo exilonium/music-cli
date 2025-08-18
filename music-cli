@@ -250,18 +250,18 @@ play_song() {
         ;;
     mpv*)
         if [ "$play_in_background" = 1 ]; then
-            nohup $player_function --no-video --force-media-title="$artist_name - $song_title" $loop_flag "$song_url" >/dev/null 2>&1 &
+            nohup $player_function --no-video --msg-level=all=no -force-media-title="$artist_name - $song_title" $loop_flag "$song_url" >/dev/null 2>&1 &
             printf "\33[2K\r\033[1;34mrun 'pkill mpv' to stop...\033[0m\n"
         else
-            $player_function --no-video --force-media-title="$artist_name - $song_title" $loop_flag "$song_url"
+            $player_function --no-video -msg-level=all=no --force-media-title="$artist_name - $song_title" $loop_flag "$song_url"
         fi
         ;;
     flatpak_mpv)
         if [ "$play_in_background" = 1 ]; then
-            nohup flatpak run io.mpv.Mpv --no-video --force-media-title="$artist_name - $song_title" $loop_flag "$song_url" >/dev/null 2>&1 &
+            nohup flatpak run io.mpv.Mpv --no-video -msg-level=all=no --force-media-title="$artist_name - $song_title" $loop_flag "$song_url" >/dev/null 2>&1 &
             printf "\33[2K\r\033[1;34mrun 'pkill mpv' to stop...\033[0m\n"
         else
-            flatpak run io.mpv.Mpv --no-video --force-media-title="$artist_name - $song_title" $loop_flag "$song_url"
+            flatpak run io.mpv.Mpv --no-video --msg-level=all=no -force-media-title="$artist_name - $song_title" $loop_flag "$song_url"
         fi
         ;;
     *)
