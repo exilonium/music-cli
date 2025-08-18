@@ -94,19 +94,6 @@ search_youtube() {
         head -20 | nl -w2 -s$'\t' | sed 's/^[[:space:]]*//'
 }
 
-get_youtube_url() {
-    video_id="$1"
-    quality="$2"
-
-    case "$quality" in
-    128) format='bestaudio[abr<=128]/bestaudio' ;;
-    320) format='bestaudio[abr<=320]/bestaudio' ;;
-    *) format='bestaudio' ;;
-    esac
-
-    yt-dlp --quiet --no-warnings --get-url -f "$format" "https://www.youtube.com/watch?v=$video_id" 2>/dev/null
-}
-
 play_youtube_playlist() {
     playlist_url="$1"
     quality="$2"
@@ -121,19 +108,23 @@ play_youtube_playlist() {
     printf "\033[1;34mFound %d videos in playlist.\033[0m\n" "${#video_ids[@]}"
 
     for vid in "${video_ids[@]}"; do
-        video_id="yt_${vid}"
+        video_id="$vid"
+        song_id="yt_${vid}"
         use_youtube=1
-
-        # Get stream URL
-        printf "\033[1;34mGetting URL for video:\033[0m https://www.youtube.com/watch?v=%s\n" "$vid"
-        song_url=$(get_youtube_url "$vid" "$quality") || {
-            printf "\033[1;31mFailed to fetch URL for %s, skipping...\033[0m\n" "$vid"
-            continue
-        }
+        song_url="https://www.youtube.com/watch?v=$vid"
 
         # Fetch metadata (optional, to display title/artist)
         song_info=$(yt-dlp --get-title "https://www.youtube.com/watch?v=$vid" 2>/dev/null)
         [ -z "$song_info" ] && song_info="Unknown Title"
+        
+        # Split title to get artist and song (if format is "Artist - Title")
+        if printf '%s' "$song_info" | grep -q " - "; then
+            artist_name=${song_info%% - *}
+            song_title=${song_info#* - }
+        else
+            artist_name="Unknown Artist"
+            song_title="$song_info"
+        fi
 
         printf "\033[1;32mPlaying:\033[0m %s\n" "$song_info"
         play_song
@@ -256,18 +247,18 @@ play_song() {
         ;;
     mpv*)
         if [ "$play_in_background" = 1 ]; then
-            nohup $player_function --no-video --msg-level=all=no -force-media-title="$artist_name - $song_title" $loop_flag "$song_url" >/dev/null 2>&1 &
+            nohup $player_function --no-video -force-media-title="$artist_name - $song_title" $loop_flag "$song_url" >/dev/null 2>&1 &
             printf "\33[2K\r\033[1;34mrun 'pkill mpv' to stop...\033[0m\n"
         else
-            $player_function --no-video -msg-level=all=no --force-media-title="$artist_name - $song_title" $loop_flag "$song_url"
+            $player_function --no-video --force-media-title="$artist_name - $song_title" $loop_flag "$song_url"
         fi
         ;;
     flatpak_mpv)
         if [ "$play_in_background" = 1 ]; then
-            nohup flatpak run io.mpv.Mpv --no-video -msg-level=all=no --force-media-title="$artist_name - $song_title" $loop_flag "$song_url" >/dev/null 2>&1 &
+            nohup flatpak run io.mpv.Mpv --no-video --force-media-title="$artist_name - $song_title" $loop_flag "$song_url" >/dev/null 2>&1 &
             printf "\33[2K\r\033[1;34mrun 'pkill mpv' to stop...\033[0m\n"
         else
-            flatpak run io.mpv.Mpv --no-video --msg-level=all=no -force-media-title="$artist_name - $song_title" $loop_flag "$song_url"
+            flatpak run io.mpv.Mpv --no-video -force-media-title="$artist_name - $song_title" $loop_flag "$song_url"
         fi
         ;;
     *)
@@ -351,9 +342,7 @@ while [ $# -gt 0 ]; do
             if [[ "$song_id" == yt_* ]]; then
                 use_youtube=1
                 video_id=${song_id#yt_}
-
-                printf "\033[1;34mGetting YouTube URL...\033[0m\n"
-                song_url=$(get_youtube_url "$video_id" "$quality") || die "Failed to get YouTube URL!"
+                song_url="https://www.youtube.com/watch?v=$video_id"
 
                 printf "\033[1;32mResuming:\033[0m %s\n" "$song_info"
                 play_song
@@ -441,9 +430,7 @@ if [ "$use_youtube" = 1 ]; then
     duration=$(printf '%s' "$selected" | cut -f4)
     album_title="YouTube"
     song_id="yt_$video_id"
-
-    printf "\33[2K\r\033[1;34mGetting YouTube URL...\033[0m\n"
-    song_url=$(get_youtube_url "$video_id" "$quality")
+    song_url="https://www.youtube.com/watch?v=$video_id"
 
 else
     printf "\33[2K\r\033[1;34mSearching JioSaavn...\033[0m\n"
@@ -465,9 +452,7 @@ else
         duration=$(printf '%s' "$selected" | cut -f4)
         album_title="YouTube"
         song_id="yt_$video_id"
-
-        printf "\33[2K\r\033[1;34mGetting YouTube URL...\033[0m\n"
-        song_url=$(get_youtube_url "$video_id" "$quality")
+        song_url="https://www.youtube.com/watch?v=$video_id"
 
     elif [ -z "$results" ]; then
         die "No results found!"
@@ -502,9 +487,7 @@ else
             duration=$(printf '%s' "$selected" | cut -f4)
             album_title="YouTube"
             song_id="yt_$video_id"
-
-            printf "\33[2K\r\033[1;34mGetting YouTube URL...\033[0m\n"
-            song_url=$(get_youtube_url "$video_id" "$quality")
+            song_url="https://www.youtube.com/watch?v=$video_id"
         else
             [ -z "$encrypted_url" ] && die "Could not get song details!"
 
@@ -523,7 +506,7 @@ if [ "$play_in_background" = 0 ] && [ "$player_function" != "download" ]; then
         case "$cmd" in
         replay)
             if [ "$use_youtube" = 1 ]; then
-                song_url=$(get_youtube_url "$video_id" "$quality")
+                song_url="https://www.youtube.com/watch?v=$video_id"
             else
                 song_url=$(get_song_url "$encrypted_url" "$quality")
             fi
@@ -531,7 +514,7 @@ if [ "$play_in_background" = 0 ] && [ "$player_function" != "download" ]; then
             ;;
         download)
             if [ "$use_youtube" = 1 ]; then
-                song_url=$(get_youtube_url "$video_id" "$quality")
+                song_url="https://www.youtube.com/watch?v=$video_id"
             else
                 song_url=$(get_song_url "$encrypted_url" "$quality")
             fi
