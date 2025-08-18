@@ -30,7 +30,7 @@ Make sure the following are installed:
 Clone the repo and make the script executable:
 
 ```bash
-git clone https://github.com/yourusername/music-cli
+git clone https://github.com/exilonium/music-cli
 cd music-cli
 chmod +x music-cli
 ```
