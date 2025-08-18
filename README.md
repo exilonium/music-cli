@@ -32,7 +32,14 @@ Clone the repo and make the script executable:
 ```bash
 git clone https://github.com/yourusername/music-cli
 cd music-cli
-chmod +x music-cli.sh
+chmod +x music-cli
+```
+
+Run it with
+
+```bash
+./music-cli
+
 ```
 
 Optionally add it to your `$PATH`:
@@ -104,6 +111,5 @@ music-cli -P "https://youtube.com/playlist?list=..."
 * Built with ❤️ for the terminal
 
 ---
-
 
 I am by no means affiliated or related with YouTube or Reliance JIO/ JioSaavn.
