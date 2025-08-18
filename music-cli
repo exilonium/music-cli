@@ -1,0 +1,541 @@
+#!/bin/sh
+
+version_number="1.0.0"
+
+# UI Functions (adapted from ani-cli)
+external_menu() {
+    rofi "$1" -sort -dmenu -i -width 1500 -p "$2" "$3"
+}
+
+launcher() {
+    [ "$use_external_menu" = "0" ] && [ -z "$1" ] && set -- "+m" "$2"
+    [ "$use_external_menu" = "0" ] && fzf "$1" --reverse --cycle --prompt "$2"
+    [ "$use_external_menu" = "1" ] && external_menu "$1" "$2" "$external_menu_args"
+}
+
+nth() {
+    stdin=$(cat -)
+    [ -z "$stdin" ] && return 1
+    line_count="$(printf "%s\n" "$stdin" | wc -l | tr -d "[:space:]")"
+    [ "$line_count" -eq 1 ] && printf "%s" "$stdin" | cut -f2- && return 0
+    prompt="$1"
+    multi_flag=""
+    [ $# -ne 1 ] && shift && multi_flag="$1"
+    line=$(printf "%s" "$stdin" | cut -f1,3- | tr '\t' ' ' | launcher "$multi_flag" "$prompt" | cut -d " " -f 1)
+    [ -n "$line" ] || exit 1
+    printf "%s" "$stdin" | grep -E '^'"${line}"'($|[[:space:]])' | cut -f2- || exit 1
+}
+
+die() {
+    printf "\33[2K\r\033[1;31m%s\033[0m\n" "$*" >&2
+    exit 1
+}
+
+help_info() {
+    printf "
+    Usage:
+    %s [options] [query]
+
+    Options:
+      -c, --continue
+        Continue playing from history
+      -d, --download
+        Download the song instead of playing it
+      -D, --delete
+        Delete history
+      -q, --quality
+        Specify audio quality (128/320, default: 320)
+      -b, --background
+        Play in background (default is foreground)
+      -l, --loop
+        Loop current track
+      -y, --youtube
+        Force YouTube search instead of JioSaavn
+      -f, --fallback
+        Enable YouTube fallback (default: enabled)
+      --no-fallback
+        Disable YouTube fallback
+      --rofi
+        Use rofi instead of fzf
+      -h, --help
+        Show this help
+      -v, --version
+        Show version
+      -P, --yt-playlist "link"
+        plays a playlist from yt
+
+    Examples:
+      %s believer
+      %s -q 320 houdini
+      %s -b -l sugar crash
+      %s -d imagine dragons
+      %s -y obscure indie song
+    \n" "${0##*/}" "${0##*/}" "${0##*/}" "${0##*/}" "${0##*/}" "${0##*/}"
+    exit 0
+}
+
+version_info() {
+    printf "%s\n" "$version_number"
+    exit 0
+}
+
+dep_ch() {
+    for dep; do
+        command -v "${dep%% *}" >/dev/null || die "Program \"${dep%% *}\" not found. Please install it."
+    done
+}
+
+# YOUTUBE FUNCTIONS
+search_youtube() {
+    query="$1"
+
+    # Use yt-dlp to search YouTube and get results
+    yt-dlp --quiet --no-warnings --flat-playlist --print "%(id)s	%(title)s	%(uploader)s	%(duration)s" "ytsearch20:$query" 2>/dev/null |
+        head -20 | nl -w2 -s$'\t' | sed 's/^[[:space:]]*//'
+}
+
+get_youtube_url() {
+    video_id="$1"
+    quality="$2"
+
+    case "$quality" in
+    128) format='bestaudio[abr<=128]/bestaudio' ;;
+    320) format='bestaudio[abr<=320]/bestaudio' ;;
+    *) format='bestaudio' ;;
+    esac
+
+    yt-dlp --quiet --no-warnings --get-url -f "$format" "https://www.youtube.com/watch?v=$video_id" 2>/dev/null
+}
+
+play_youtube_playlist() {
+    playlist_url="$1"
+    quality="$2"
+
+    # Get all video IDs from playlist
+    mapfile -t video_ids < <(yt-dlp --flat-playlist --get-id "$playlist_url" 2>/dev/null)
+
+    if [ ${#video_ids[@]} -eq 0 ]; then
+        die "No videos found in playlist!"
+    fi
+
+    printf "\033[1;34mFound %d videos in playlist.\033[0m\n" "${#video_ids[@]}"
+
+    for vid in "${video_ids[@]}"; do
+        video_id="yt_${vid}"
+        use_youtube=1
+
+        # Get stream URL
+        printf "\033[1;34mGetting URL for video:\033[0m https://www.youtube.com/watch?v=%s\n" "$vid"
+        song_url=$(get_youtube_url "$vid" "$quality") || {
+            printf "\033[1;31mFailed to fetch URL for %s, skipping...\033[0m\n" "$vid"
+            continue
+        }
+
+        # Fetch metadata (optional, to display title/artist)
+        song_info=$(yt-dlp --get-title "https://www.youtube.com/watch?v=$vid" 2>/dev/null)
+        [ -z "$song_info" ] && song_info="Unknown Title"
+
+        printf "\033[1;32mPlaying:\033[0m %s\n" "$song_info"
+        play_song
+    done
+}
+
+# MUSIC API FUNCTIONS
+search_music() {
+    query="$1"
+
+    # URL encode the query
+    encoded_query=$(printf '%s' "$query" | sed 's/ /+/g;s/&/%26/g')
+
+    response=$(curl -s "https://www.jiosaavn.com/api.php?p=1&q=$encoded_query&_format=json&_marker=0&api_version=4&ctx=web6dot0&n=20&__call=search.getResults")
+
+    printf '%s' "$response" | jq -r '.results[]? | [.id, .title, (.more_info.artistMap.primary_artists[0].name // "Unknown Artist"), (.more_info.album // "Unknown Album"), (.more_info.duration // "0")] | @tsv' |
+        nl -w2 -s$'\t' | sed 's/^[[:space:]]*//'
+}
+
+get_song_details() {
+    song_id="$1"
+
+    response=$(curl -s "https://www.jiosaavn.com/api.php?__call=song.getDetails&pids=$song_id&api_version=4&_format=json&_marker=0&ctx=web6dot0")
+
+    printf '%s' "$response" | jq -r '.songs[0]'
+}
+
+get_song_url() {
+    encrypted_url="$1"
+    bitrate="$2"
+
+    # Map bitrate to actual file suffix
+    case "$bitrate" in
+    160) file_suffix="160" ;;
+    320) file_suffix="320" ;;
+    *) file_suffix="96" ;;
+    esac
+
+    # URL encode the encrypted URL
+    encoded_url=$(printf '%s' "$encrypted_url" | sed 's/+/%2B/g;s/=/%3D/g;s/\//%2F/g')
+
+    response=$(curl -s "https://www.jiosaavn.com/api.php?__call=song.generateAuthToken&url=$encoded_url&bitrate=$bitrate&api_version=4&_format=json&ctx=web6dot0&_marker=0")
+
+    auth_url=$(printf '%s' "$response" | jq -r '.auth_url // empty')
+
+    # Convert the URL format
+    if [ -n "$auth_url" ]; then
+        # Extract the path part and convert web.saavncdn.com to aac.saavncdn.com
+        # Remove query parameters and change quality suffix to mapped bitrate
+        converted_url=$(printf '%s' "$auth_url" | sed 's|web\.saavncdn\.com|aac.saavncdn.com|' | sed 's|\?.*||' | sed "s|_[0-9]*\.mp4|_${file_suffix}.mp4|")
+        printf '%s' "$converted_url"
+    fi
+}
+
+# PLAYER FUNCTIONS
+where_mpv() {
+    command -v "flatpak" >/dev/null && flatpak info io.mpv.Mpv >/dev/null 2>&1 && printf "%s" "flatpak_mpv" && return 0
+    printf "%s" "mpv" && return 0
+}
+
+format_duration() {
+    duration_sec="$1"
+    minutes=$((duration_sec / 60))
+    seconds=$((duration_sec % 60))
+    printf "%d:%02d" "$minutes" "$seconds"
+}
+
+update_history() {
+    if grep -q "$song_id" "$histfile"; then
+        sed -E "s|^[^	]*	${song_id}	.*$|$(date +%s)	${song_id}	${artist_name} - ${song_title}	${album_title}|" "$histfile" >"${histfile}.new"
+    else
+        cp "$histfile" "${histfile}.new"
+        printf "%s\t%s\t%s\t%s\n" "$(date +%s)" "$song_id" "$artist_name - $song_title" "$album_title" >>"${histfile}.new"
+    fi
+    mv "${histfile}.new" "$histfile"
+}
+
+download_song() {
+    song_url="$1"
+    filename="$2"
+
+    if [ "$use_youtube" = 1 ]; then
+        # For YouTube, use yt-dlp for downloading
+        yt-dlp --quiet --no-warnings --extract-audio --audio-format mp3 --audio-quality "$quality" -o "$download_dir/$filename.%(ext)s" "$song_url"
+    else
+        # For JioSaavn URLs
+        case "$song_url" in
+        *.mp4*)
+            aria2c --enable-rpc=false --check-certificate=false --continue --summary-interval=0 -x 16 -s 16 "$song_url" --dir="$download_dir" -o "$filename.mp4" --download-result=hide
+            ;;
+        *)
+            aria2c --enable-rpc=false --check-certificate=false --continue --summary-interval=0 -x 16 -s 16 "$song_url" --dir="$download_dir" -o "$filename.mp3" --download-result=hide
+            ;;
+        esac
+    fi
+}
+
+play_song() {
+    [ -z "$song_url" ] && die "Could not get song URL!"
+
+    # Format song info for display
+    if [ "$use_youtube" = 1 ]; then
+        printf "\33[2K\r\033[1;32mNow Playing (YouTube):\033[0m %s - %s\n" "$artist_name" "$song_title"
+    else
+        duration_formatted=$(format_duration $duration)
+        printf "\33[2K\r\033[1;32mNow Playing (JioSaavn):\033[0m %s - %s [%s]\n" "$artist_name" "$song_title" "$duration_formatted"
+    fi
+
+    case "$player_function" in
+    download)
+        filename="${artist_name} - ${song_title}"
+        filename=$(printf '%s' "$filename" | tr '/' '_' | tr '?' '_' | tr '"' '_' | tr '<' '_' | tr '>' '_' | tr '|' '_' | tr '*' '_')
+        download_song "$song_url" "$filename"
+        ;;
+    mpv*)
+        if [ "$play_in_background" = 1 ]; then
+            nohup $player_function --no-video --force-media-title="$artist_name - $song_title" $loop_flag "$song_url" >/dev/null 2>&1 &
+            printf "\33[2K\r\033[1;34mrun 'pkill mpv' to stop...\033[0m\n"
+        else
+            $player_function --no-video --force-media-title="$artist_name - $song_title" $loop_flag "$song_url"
+        fi
+        ;;
+    flatpak_mpv)
+        if [ "$play_in_background" = 1 ]; then
+            nohup flatpak run io.mpv.Mpv --no-video --force-media-title="$artist_name - $song_title" $loop_flag "$song_url" >/dev/null 2>&1 &
+            printf "\33[2K\r\033[1;34mrun 'pkill mpv' to stop...\033[0m\n"
+        else
+            flatpak run io.mpv.Mpv --no-video --force-media-title="$artist_name - $song_title" $loop_flag "$song_url"
+        fi
+        ;;
+    *)
+        if [ "$play_in_background" = 1 ]; then
+            nohup $player_function "$song_url" >/dev/null 2>&1 &
+        else
+            $player_function "$song_url"
+        fi
+        ;;
+    esac
+
+    update_history
+    unset song_url
+}
+
+# MAIN LOGIC
+
+# Setup
+agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:109.0) Gecko/20100101 Firefox/121.0"
+download_dir="${MUSIC_CLI_DOWNLOAD_DIR:-.}"
+quality="${MUSIC_CLI_QUALITY:-320}"
+play_in_background="${MUSIC_CLI_BACKGROUND:-0}"
+
+case "$(uname -s)" in
+Darwin*) player_function="${MUSIC_CLI_PLAYER:-afplay}" ;;
+*ndroid*) player_function="${MUSIC_CLI_PLAYER:-android_vlc}" ;;
+*) player_function="${MUSIC_CLI_PLAYER:-$(where_mpv)}" ;;
+esac
+
+use_external_menu="${MUSIC_CLI_EXTERNAL_MENU:-0}"
+use_youtube_fallback="${MUSIC_CLI_YOUTUBE_FALLBACK:-1}"
+use_youtube=0
+loop_enabled=0
+
+hist_dir="${MUSIC_CLI_HIST_DIR:-${XDG_STATE_HOME:-$HOME/.local/state}/music-cli}"
+[ ! -d "$hist_dir" ] && mkdir -p "$hist_dir"
+histfile="$hist_dir/music-history"
+[ ! -f "$histfile" ] && : >"$histfile"
+
+# Parse arguments
+while [ $# -gt 0 ]; do
+    case "$1" in
+    -q | --quality)
+        [ $# -lt 2 ] && die "missing argument! 
+            try below
+            320 - Higest quality 
+            160 - Medium quality
+            96 - Decent quality"
+        quality="$2"
+        shift
+        ;;
+    -y | --youtube) use_youtube=1 ;;
+    -f | --fallback) use_youtube_fallback=1 ;;
+    --no-fallback) use_youtube_fallback=0 ;;
+    -b | --background) play_in_background=1 ;;
+    -l | --loop)
+        loop_enabled=1
+        loop_flag="--loop"
+        ;;
+    -d | --download) player_function="download" ;;
+    -D | --delete)
+        : >"$histfile"
+        printf "History cleared!\n"
+        exit 0
+        ;;
+    -c | --continue)
+        # Load from history
+        if [ -s "$histfile" ]; then
+            last_song=$(tail -n1 "$histfile")
+
+            # history format: index <tab> song_id <tab> "Artist - Title" <tab> Album
+            song_id=$(printf '%s' "$last_song" | cut -f2)
+            song_info=$(printf '%s' "$last_song" | cut -f3)
+            album_title=$(printf '%s' "$last_song" | cut -f4)
+
+            # safer split: artist and title
+            artist_name=${song_info%% - *}
+            song_title=${song_info#* - }
+
+            if [[ "$song_id" == yt_* ]]; then
+                use_youtube=1
+                video_id=${song_id#yt_}
+
+                printf "\033[1;34mGetting YouTube URL...\033[0m\n"
+                song_url=$(get_youtube_url "$video_id" "$quality") || die "Failed to get YouTube URL!"
+
+                printf "\033[1;32mResuming:\033[0m %s\n" "$song_info"
+                play_song
+                exit 0
+            else
+                printf "\033[1;34mGetting song details...\033[0m\n"
+                song_details=$(get_song_details "$song_id") || die "Failed to get song details!"
+                encrypted_url=$(jq -r '.more_info.encrypted_media_url // empty' <<<"$song_details")
+                duration=$(jq -r '.more_info.duration // "0"' <<<"$song_details")
+
+                [ -z "$encrypted_url" ] && die "Could not get song details!"
+
+                printf "\033[1;34mGetting song URL...\033[0m\n"
+                song_url=$(get_song_url "$encrypted_url" "$quality") || die "Failed to get song URL!"
+
+                printf "\033[1;32mResuming:\033[0m %s\n" "$song_info"
+                play_song
+                exit 0
+            fi
+        else
+            die "No history found!"
+        fi
+        ;;
+    --rofi) use_external_menu=1 ;;
+    -P | --yt-playlist)
+        shift
+        playlist_url="$1"
+        use_youtube=1
+        [ -z "$playlist_url" ] && die "Missing YouTube playlist URL!"
+
+        printf "\033[1;34mLoading YouTube playlist...\033[0m\n"
+        play_youtube_playlist "$playlist_url" "$quality"
+        exit 0
+        ;;
+    -v | --version) version_info ;;
+    -h | --help) help_info ;;
+    -*) die "Unknown option: $1" ;;
+    *) query="$(printf "%s" "$query $1" | sed "s|^ ||")" ;;
+    esac
+    shift
+done
+
+# Check dependencies
+printf "\33[2K\r\033[1;34mChecking dependencies...\033[0m\n"
+dep_ch "curl" "jq" || true
+[ "$use_external_menu" = "0" ] && dep_ch "fzf" || true
+[ "$use_external_menu" = "1" ] && dep_ch "rofi" || true
+[ "$use_youtube_fallback" = 1 ] || [ "$use_youtube" = 1 ] && dep_ch "yt-dlp" || true
+case "$player_function" in
+download)
+    if [ "$use_youtube" = 1 ]; then
+        dep_ch "yt-dlp"
+    else
+        dep_ch "aria2c"
+    fi
+    ;;
+*android*) ;;
+flatpak_mpv) ;;
+*) dep_ch "$player_function" ;;
+esac
+
+# Get search query if not provided
+if [ "$use_external_menu" = "0" ]; then
+    while [ -z "$query" ]; do
+        printf "\33[2K\r\033[1;36mSearch music: \033[0m" && read -r query
+    done
+else
+    [ -z "$query" ] && query=$(printf "" | external_menu "" "Search music: ")
+    [ -z "$query" ] && exit 1
+fi
+
+# Search and select
+if [ "$use_youtube" = 1 ]; then
+    printf "\33[2K\r\033[1;34mSearching YouTube...\033[0m\n"
+    results=$(search_youtube "$query")
+    [ -z "$results" ] && die "No YouTube results found!"
+
+    selected=$(printf '%s' "$results" | nth "Select song: ")
+    [ -z "$selected" ] && exit 1
+
+    # Parse YouTube result
+    video_id=$(printf '%s' "$selected" | cut -f1)
+    song_title=$(printf '%s' "$selected" | cut -f2)
+    artist_name=$(printf '%s' "$selected" | cut -f3)
+    duration=$(printf '%s' "$selected" | cut -f4)
+    album_title="YouTube"
+    song_id="yt_$video_id"
+
+    printf "\33[2K\r\033[1;34mGetting YouTube URL...\033[0m\n"
+    song_url=$(get_youtube_url "$video_id" "$quality")
+
+else
+    printf "\33[2K\r\033[1;34mSearching JioSaavn...\033[0m\n"
+    results=$(search_music "$query")
+
+    if [ -z "$results" ] && [ "$use_youtube_fallback" = 1 ]; then
+        printf "\33[2K\r\033[1;33mJioSaavn search failed, trying YouTube...\033[0m\n"
+        results=$(search_youtube "$query")
+        [ -z "$results" ] && die "No results found on JioSaavn or YouTube!"
+        use_youtube=1
+
+        selected=$(printf '%s' "$results" | nth "Select song: ")
+        [ -z "$selected" ] && exit 1
+
+        # Parse YouTube result
+        video_id=$(printf '%s' "$selected" | cut -f1)
+        song_title=$(printf '%s' "$selected" | cut -f2)
+        artist_name=$(printf '%s' "$selected" | cut -f3)
+        duration=$(printf '%s' "$selected" | cut -f4)
+        album_title="YouTube"
+        song_id="yt_$video_id"
+
+        printf "\33[2K\r\033[1;34mGetting YouTube URL...\033[0m\n"
+        song_url=$(get_youtube_url "$video_id" "$quality")
+
+    elif [ -z "$results" ]; then
+        die "No results found!"
+    else
+        selected=$(printf '%s' "$results" | nth "Select song: ")
+        [ -z "$selected" ] && exit 1
+
+        # Parse JioSaavn result
+        song_id=$(printf '%s' "$selected" | cut -f1)
+        song_title=$(printf '%s' "$selected" | cut -f2)
+        artist_name=$(printf '%s' "$selected" | cut -f3)
+        album_title=$(printf '%s' "$selected" | cut -f4)
+        duration=$(printf '%s' "$selected" | cut -f5)
+
+        # Get song details and URL
+        printf "\33[2K\r\033[1;34mGetting song details...\033[0m\n"
+        song_details=$(get_song_details "$song_id")
+        encrypted_url=$(printf '%s' "$song_details" | jq -r '.more_info.encrypted_media_url // empty')
+
+        if [ -z "$encrypted_url" ] && [ "$use_youtube_fallback" = 1 ]; then
+            printf "\33[2K\r\033[1;33mJioSaavn failed, trying YouTube...\033[0m\n"
+            results=$(search_youtube "$query")
+            [ -z "$results" ] && die "No results found on JioSaavn or YouTube!"
+
+            selected=$(printf '%s' "$results" | nth "Select song: ")
+            [ -z "$selected" ] && exit 1
+
+            use_youtube=1
+            video_id=$(printf '%s' "$selected" | cut -f1)
+            song_title=$(printf '%s' "$selected" | cut -f2)
+            artist_name=$(printf '%s' "$selected" | cut -f3)
+            duration=$(printf '%s' "$selected" | cut -f4)
+            album_title="YouTube"
+            song_id="yt_$video_id"
+
+            printf "\33[2K\r\033[1;34mGetting YouTube URL...\033[0m\n"
+            song_url=$(get_youtube_url "$video_id" "$quality")
+        else
+            [ -z "$encrypted_url" ] && die "Could not get song details!"
+
+            printf "\33[2K\r\033[1;34mGetting song URL...\033[0m\n"
+            song_url=$(get_song_url "$encrypted_url" "$quality")
+        fi
+    fi
+fi
+
+# Play the song
+play_song
+
+# Interactive menu for foreground playback
+if [ "$play_in_background" = 0 ] && [ "$player_function" != "download" ]; then
+    while cmd=$(printf "replay\ndownload\nquit" | nth "Song finished. What next? "); do
+        case "$cmd" in
+        replay)
+            if [ "$use_youtube" = 1 ]; then
+                song_url=$(get_youtube_url "$video_id" "$quality")
+            else
+                song_url=$(get_song_url "$encrypted_url" "$quality")
+            fi
+            play_song
+            ;;
+        download)
+            if [ "$use_youtube" = 1 ]; then
+                song_url=$(get_youtube_url "$video_id" "$quality")
+            else
+                song_url=$(get_song_url "$encrypted_url" "$quality")
+            fi
+            old_player_function="$player_function"
+            player_function="download"
+            play_song
+            player_function="$old_player_function"
+            ;;
+        *) exit 0 ;;
+        esac
+    done
+fi
+
+printf "\33[2K\r\033[1;32mDone!\033[0m\n"
