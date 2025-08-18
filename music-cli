@@ -69,7 +69,7 @@ help_info() {
       %s -q 320 houdini
       %s -b -l sugar crash
       %s -d imagine dragons
-      %s -y obscure indie song
+      %s -y never gonna give you up
     \n" "${0##*/}" "${0##*/}" "${0##*/}" "${0##*/}" "${0##*/}" "${0##*/}"
     exit 0
 }
