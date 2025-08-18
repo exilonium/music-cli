@@ -215,17 +215,23 @@ download_song() {
     song_url="$1"
     filename="$2"
 
+    # Sanitize filename: remove problematic characters
+    safe_filename=$(printf '%s' "$filename" | tr '/' '_' | tr '?' '_' | tr '"' '_' | tr '<' '_' | tr '>' '_' | tr '|' '_' | tr '*' '_')
+    
     if [ "$use_youtube" = 1 ]; then
-        # For YouTube, use yt-dlp for downloading
-        yt-dlp --quiet --no-warnings --extract-audio --audio-format mp3 --audio-quality "$quality" -o "$download_dir/$filename.%(ext)s" "$song_url"
+        # YouTube downloads via yt-dlp
+        yt-dlp --quiet --no-warnings --extract-audio --audio-format mp3 --audio-quality "$quality" \
+            -o "$download_dir/$safe_filename.%(ext)s" "$song_url"
     else
-        # For JioSaavn URLs
+        # JioSaavn downloads via aria2c
         case "$song_url" in
         *.mp4*)
-            aria2c --enable-rpc=false --check-certificate=false --continue --summary-interval=0 -x 16 -s 16 "$song_url" --dir="$download_dir" -o "$filename.mp4" --download-result=hide
+            aria2c --check-certificate=false --continue -x 16 -s 16 \
+                -d "$download_dir" -o "$safe_filename.mp4" "$song_url" --summary-interval=0 --download-result=hide
             ;;
         *)
-            aria2c --enable-rpc=false --check-certificate=false --continue --summary-interval=0 -x 16 -s 16 "$song_url" --dir="$download_dir" -o "$filename.mp3" --download-result=hide
+            aria2c --check-certificate=false --continue -x 16 -s 16 \
+                -d "$download_dir" -o "$safe_filename.mp3" "$song_url" --summary-interval=0 --download-result=hide
             ;;
         esac
     fi
@@ -281,7 +287,8 @@ play_song() {
 
 # Setup
 agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:109.0) Gecko/20100101 Firefox/121.0"
-download_dir="${MUSIC_CLI_DOWNLOAD_DIR:-.}"
+download_dir="${MUSIC_CLI_DOWNLOAD_DIR:-$HOME/Music/music-cli}"
+[ ! -d "$download_dir" ] && mkdir -p "$download_dir"
 quality="${MUSIC_CLI_QUALITY:-320}"
 play_in_background="${MUSIC_CLI_BACKGROUND:-0}"
 
