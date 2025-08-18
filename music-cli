@@ -247,18 +247,18 @@ play_song() {
         ;;
     mpv*)
         if [ "$play_in_background" = 1 ]; then
-            nohup $player_function --no-video -force-media-title="$artist_name - $song_title" $loop_flag "$song_url" >/dev/null 2>&1 &
+            nohup $player_function --no-video --force-media-title="$artist_name - $song_title" --no-sub $loop_flag "$song_url" >/dev/null 2>&1 &
             printf "\33[2K\r\033[1;34mrun 'pkill mpv' to stop...\033[0m\n"
         else
-            $player_function --no-video --force-media-title="$artist_name - $song_title" $loop_flag "$song_url"
+            $player_function --no-video --force-media-title="$artist_name - $song_title" --no-sub  $loop_flag "$song_url"
         fi
         ;;
     flatpak_mpv)
         if [ "$play_in_background" = 1 ]; then
-            nohup flatpak run io.mpv.Mpv --no-video --force-media-title="$artist_name - $song_title" $loop_flag "$song_url" >/dev/null 2>&1 &
+            nohup flatpak run io.mpv.Mpv --no-video --force-media-title="$artist_name - $song_title" --no-sub $loop_flag "$song_url" >/dev/null 2>&1 &
             printf "\33[2K\r\033[1;34mrun 'pkill mpv' to stop...\033[0m\n"
         else
-            flatpak run io.mpv.Mpv --no-video -force-media-title="$artist_name - $song_title" $loop_flag "$song_url"
+            flatpak run io.mpv.Mpv --no-video --force-media-title="$artist_name - $song_title" --no-sub $loop_flag "$song_url"
         fi
         ;;
     *)
@@ -500,9 +500,17 @@ fi
 # Play the song
 play_song
 
-# Interactive menu for foreground playback
+# Interactive menu for foreground playbook
 if [ "$play_in_background" = 0 ] && [ "$player_function" != "download" ]; then
-    while cmd=$(printf "replay\ndownload\nquit" | nth "Song finished. What next? "); do
+    while true; do
+        # Determine the other source name for the menu based on current source
+        if [ "$use_youtube" = 1 ]; then
+            other_source="search jiosaavn"
+        else
+            other_source="search youtube"
+        fi
+        
+        cmd=$(printf "replay\ndownload\n%s\nquit" "$other_source" | nth "Song finished. What next? ")
         case "$cmd" in
         replay)
             if [ "$use_youtube" = 1 ]; then
@@ -522,6 +530,67 @@ if [ "$play_in_background" = 0 ] && [ "$player_function" != "download" ]; then
             player_function="download"
             play_song
             player_function="$old_player_function"
+            ;;
+        "search other source"|"search jiosaavn"|"search youtube")
+            # Search on the opposite source with current song title
+            search_query="$artist_name $song_title"
+            
+            if [ "$use_youtube" = 1 ]; then
+                # Currently on YouTube, search JioSaavn
+                printf "\33[2K\r\033[1;34mSearching JioSaavn for: %s...\033[0m\n" "$search_query"
+                alt_results=$(search_music "$search_query")
+                
+                if [ -z "$alt_results" ]; then
+                    printf "\033[1;31mNo results found on JioSaavn!\033[0m\n"
+                    continue
+                fi
+                
+                alt_selected=$(printf '%s' "$alt_results" | nth "Select JioSaavn song: ")
+                [ -z "$alt_selected" ] && continue
+                
+                # Parse JioSaavn result
+                song_id=$(printf '%s' "$alt_selected" | cut -f1)
+                song_title=$(printf '%s' "$alt_selected" | cut -f2)
+                artist_name=$(printf '%s' "$alt_selected" | cut -f3)
+                album_title=$(printf '%s' "$alt_selected" | cut -f4)
+                duration=$(printf '%s' "$alt_selected" | cut -f5)
+                use_youtube=0
+                
+                # Get song details and URL
+                printf "\033[1;34mGetting song details...\033[0m\n"
+                song_details=$(get_song_details "$song_id")
+                encrypted_url=$(printf '%s' "$song_details" | jq -r '.more_info.encrypted_media_url // empty')
+                [ -z "$encrypted_url" ] && { printf "\033[1;31mFailed to get song details!\033[0m\n"; continue; }
+                
+                printf "\033[1;34mGetting song URL...\033[0m\n"
+                song_url=$(get_song_url "$encrypted_url" "$quality")
+                [ -z "$song_url" ] && { printf "\033[1;31mFailed to get song URL!\033[0m\n"; continue; }
+                
+            else
+                # Currently on JioSaavn, search YouTube
+                printf "\33[2K\r\033[1;34mSearching YouTube for: %s...\033[0m\n" "$search_query"
+                alt_results=$(search_youtube "$search_query")
+                
+                if [ -z "$alt_results" ]; then
+                    printf "\033[1;31mNo results found on YouTube!\033[0m\n"
+                    continue
+                fi
+                
+                alt_selected=$(printf '%s' "$alt_results" | nth "Select YouTube song: ")
+                [ -z "$alt_selected" ] && continue
+                
+                # Parse YouTube result
+                video_id=$(printf '%s' "$alt_selected" | cut -f1)
+                song_title=$(printf '%s' "$alt_selected" | cut -f2)
+                artist_name=$(printf '%s' "$alt_selected" | cut -f3)
+                duration=$(printf '%s' "$alt_selected" | cut -f4)
+                album_title="YouTube"
+                song_id="yt_$video_id"
+                use_youtube=1
+                song_url="https://www.youtube.com/watch?v=$video_id"
+            fi
+            
+            play_song
             ;;
         *) exit 0 ;;
         esac
