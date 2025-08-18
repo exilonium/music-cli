@@ -63,6 +63,9 @@ help_info() {
         Show version
       -P, --yt-playlist "link"
         plays a playlist from yt
+      -U, --update
+        update this script
+
 
     Examples:
       %s believer
@@ -76,6 +79,21 @@ help_info() {
 
 version_info() {
     printf "%s\n" "$version_number"
+    exit 0
+}
+
+update_script() {
+    update="$(curl -s -A "$agent" "https://raw.githubusercontent.com/exilonium/music-cli/main/music-cli")" || die "Connection error"
+    update="$(printf '%s\n' "$update" | diff -u "$0" -)"
+    if [ -z "$update" ]; then
+        printf "Script is up to date :)\n"
+    else
+        if printf '%s\n' "$update" | patch "$0" -; then
+            printf "Script has been updated\n"
+        else
+            die "Can't update for some reason!"
+        fi
+    fi
     exit 0
 }
 
@@ -379,6 +397,7 @@ while [ $# -gt 0 ]; do
         ;;
     -v | --version) version_info ;;
     -h | --help) help_info ;;
+    -U | --update) update_script ;;
     -*) die "Unknown option: $1" ;;
     *) query="$(printf "%s" "$query $1" | sed "s|^ ||")" ;;
     esac
