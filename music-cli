@@ -176,9 +176,12 @@ get_song_url() {
 
     # Map bitrate to actual file suffix
     case "$bitrate" in
+    12) file_suffix="12" ;;
+    48) file_suffix="48" ;;
+    96) file_suffix="96" ;;
     160) file_suffix="160" ;;
     320) file_suffix="320" ;;
-    *) file_suffix="96" ;;
+    *) file_suffix="320" ;;
     esac
 
     # URL encode the encrypted URL
