@@ -195,7 +195,12 @@ get_song_url() {
     if [ -n "$auth_url" ]; then
         # Extract the path part and convert web.saavncdn.com to aac.saavncdn.com
         # Remove query parameters and change quality suffix to mapped bitrate
-        converted_url=$(printf '%s' "$auth_url" | sed 's|web\.saavncdn\.com|aac.saavncdn.com|' | sed 's|\?.*||' | sed "s|_[0-9]*\.mp4|_${file_suffix}.mp4|")
+        # converted_url=$(printf '%s' "$auth_url" | sed 's|web\.saavncdn\.com|aac.saavncdn.com|' | sed 's|\?.*||' | sed "s|_[0-9]*\.mp4|_${file_suffix}.mp4|")
+
+        converted_url=$(printf '%s' "$auth_url" \
+        | sed -E 's|[^/]*\.saavncdn\.com|aac.saavncdn.com|' \
+        | sed 's|\?.*||' \
+        | sed "s|_[0-9]*\.mp4|_${file_suffix}.mp4|")
         printf '%s' "$converted_url"
     fi
 }
