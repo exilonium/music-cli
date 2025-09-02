@@ -154,7 +154,7 @@ search_music() {
     query="$1"
 
     # URL encode the query
-    encoded_query=$(printf '%s' "$query" | sed 's/ /+/g;s/&/%26/g')
+    encoded_query=$(printf '%s' "$query" | sed 's/ /+/g')
 
     response=$(curl -s "https://www.jiosaavn.com/api.php?p=1&q=$encoded_query&_format=json&_marker=0&api_version=4&ctx=web6dot0&n=20&__call=search.getResults")
 
