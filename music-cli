@@ -55,6 +55,9 @@ help_info() {
         Enable YouTube fallback (default: enabled)
       --no-fallback
         Disable YouTube fallback
+      -r, --radio [station]
+        Play radio station continuously (Pop, Jazz, Rock, Romance, etc.)
+        Staion Name is case sensitive,if no name is passed, the script will fetch automatically and list
       --rofi
         Use rofi instead of fzf
       -h, --help
@@ -149,6 +152,95 @@ play_youtube_playlist() {
     done
 }
 
+get_radio_stations() {
+    curl -s 'https://www.jiosaavn.com/api.php?__call=webradio.getFeaturedStations&api_version=4&_format=json&_marker=0&ctx=web6dot0&languages=english' |
+        jq -r '.[] | objects | .id | select(. != null and . != "")' 2>/dev/null
+}
+
+select_radio_station() {
+    station_param="$1"
+    
+    if [ -z "$station_param" ]; then
+        # No parameter - show menu of available stations
+        stations=$(get_radio_stations)
+        
+        if [ -z "$stations" ]; then
+            printf "Pop\nJazz\nRock\nHip Hop\nBlues" # fallback options
+        else
+            printf '%s\n' "$stations"
+        fi | nth "Select radio station: "
+    else
+        printf "%s" "$station_param"
+    fi
+}
+
+play_radio() {
+    station_name=$(select_radio_station "$1")
+    [ -z "$station_name" ] && exit 1
+    
+    printf "\033[1;32mStarting %s radio...\033[0m\n" "$station_name"
+    
+    # Convert spaces to + for URL encoding
+    encoded_station=$(printf '%s' "$station_name" | sed 's/ /+/g')
+    
+    # Create radio station - try direct station name first
+    printf "\033[1;34mCreating radio station...\033[0m\n"
+    station_id=$(curl -s "https://www.jiosaavn.com/api.php?language=english&query=&name=$encoded_station&mode=&artistid=&api_version=4&_format=json&_marker=0&ctx=web6dot0&__call=webradio.createFeaturedStation" | 
+        jq -r '.stationid // empty' 2>/dev/null)
+    
+    [ -z "$station_id" ] && die "Failed to create radio station for: $station_name"
+    
+    printf "\033[1;34mRadio station created. Playing continuously... (Ctrl+C to stop)\033[0m\n"
+    
+    # Radio loop
+    next=1
+    consecutive_failures=0
+    
+    while true; do
+        # Get songs batch
+        songs=$(curl -s "https://www.jiosaavn.com/api.php?__call=webradio.getSong&stationid=$station_id&k=20&next=$next&api_version=4&_format=json&_marker=0&ctx=web6dot0" | 
+            jq -r '.[] | objects | .song | "\(.id)\t\(.title)\t\(.more_info.artistMap.primary_artists[0].name // "Unknown Artist")\t\(.more_info.encrypted_media_url // "")"' 2>/dev/null)
+        
+        if [ -z "$songs" ]; then
+            consecutive_failures=$((consecutive_failures + 1))
+            if [ $consecutive_failures -gt 3 ]; then
+                die "Radio stream failed multiple times. Exiting."
+            fi
+            printf "\033[1;33mNo songs received, retrying... (attempt %d/3)\033[0m\n" "$consecutive_failures"
+            next=1  # Reset to beginning
+            sleep 2
+            continue
+        fi
+        
+        # Reset failure counter on success
+        consecutive_failures=0
+        
+        # Play each song
+        printf '%s\n' "$songs" | while IFS=$'\t' read -r song_id song_title artist_name encrypted_url; do
+            [ -z "$song_id" ] || [ -z "$encrypted_url" ] && continue
+            
+            album_title="$station_name Radio"
+            
+            printf "\033[1;32m📻 Now Playing:\033[0m %s - %s\n" "$artist_name" "$song_title"
+            
+            # Get song URL
+            song_url=$(get_song_url "$encrypted_url" "$quality")
+            
+            if [ -z "$song_url" ]; then
+                printf "\033[1;33mSkipping song (no URL available)\033[0m\n"
+                continue
+            fi
+            
+            # Play the song
+            play_song
+            # Update history
+            update_history
+            unset song_url
+        done
+        
+        next=$((next + 1))
+    done
+}
 # MUSIC API FUNCTIONS
 search_music() {
     query="$1"
@@ -333,7 +425,9 @@ while [ $# -gt 0 ]; do
             try below
             320 - Higest quality 
             160 - Medium quality
-            96 - Decent quality"
+            96 - Decent quality
+            48 - Potato quality
+            12 - Are you sure about that?"
         quality="$2"
         shift
         ;;
@@ -392,6 +486,24 @@ while [ $# -gt 0 ]; do
             die "No history found!"
         fi
         ;;
+    -r | --radio)
+        if [ $# -gt 1 ] && [ "${2#-}" = "$2" ]; then
+            shift
+            radio_station="$1"
+        fi
+        
+        printf "\033[1;34mChecking dependencies...\033[0m\n"
+        dep_ch "curl" "jq"
+        case "$player_function" in
+            *android*) ;;
+            flatpak_mpv) ;;
+            *) dep_ch "$player_function" ;;
+        esac
+        
+        play_radio "$radio_station"
+        exit 0
+        ;;
+
     --rofi) use_external_menu=1 ;;
     -P | --yt-playlist)
         shift
