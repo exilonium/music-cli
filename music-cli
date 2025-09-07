@@ -774,7 +774,7 @@ if [ "$play_in_background" = 0 ] && [ "$player_function" != "download" ]; then
             ;;
         "search other source"|"search jiosaavn"|"search youtube")
             # Search on the opposite source with current song title
-            search_query="$artist_name $song_title"
+            search_query="$song_title"
             
             if [ "$use_youtube" = 1 ]; then
                 # Currently on YouTube, search JioSaavn
