@@ -41,6 +41,8 @@ help_info() {
         Continue playing from history
       -d, --download
         Download the song instead of playing it
+      -df, --download-force
+       Force download a song (if it already exists)
       -D, --delete
         Delete history
       -q, --quality
