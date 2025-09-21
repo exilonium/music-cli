@@ -61,19 +61,25 @@ Usage:
 music-cli [options] [query]
 
 Options:
+    
   -c, --continue        Continue playing from history
   -d, --download        Download the song instead of playing it
+  -df, --download-force Force download a song (if it already exists)
   -D, --delete          Delete history
   -q, --quality         Specify audio quality (128/320, default: 320)
-  -b, --background      Play in background
+  -b, --background      Play in background (default is foreground)
   -l, --loop            Loop current track
-  -y, --youtube         Force YouTube search
-  -f, --fallback        Enable YouTube fallback (default)
+  -y, --youtube         Force YouTube search instead of JioSaavn
+  -f, --fallback        Enable YouTube fallback (default: enabled)
   --no-fallback         Disable YouTube fallback
+  -r, --radio [station] Play radio station continuously (Pop, Jazz, Rock, Romance, etc.)
+  -R, --record          Record while playing (saves stream to file using mpv cache)
   --rofi                Use rofi instead of fzf
-  -P, --yt-playlist URL Play YouTube playlist
-  -h, --help            Show help
+  -h, --help            Show this help
   -v, --version         Show version
+  -P, --yt-playlist URL plays a playlist from yt
+  -U, --update          Update this script
+
 ```
 
 ## 📝 Examples
