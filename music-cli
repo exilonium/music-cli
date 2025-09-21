@@ -88,19 +88,41 @@ version_info() {
 }
 
 update_script() {
-    update="$(curl -s -A "$agent" "https://raw.githubusercontent.com/exilonium/music-cli/main/music-cli")" || die "Connection error"
-    update="$(printf '%s\n' "$update" | diff -u "$0" -)"
-    if [ -z "$update" ]; then
+    remote="$(curl -s -A "$agent" "https://raw.githubusercontent.com/exilonium/music-cli/main/music-cli")" || die "Connection error"
+    diff_output="$(printf '%s\n' "$remote" | diff -u "$0" -)"
+
+    if [ -z "$diff_output" ]; then
         printf "Script is up to date :)\n"
     else
-        if printf '%s\n' "$update" | patch "$0" -; then
-            printf "Script has been updated\n"
+        if [ "$update" = "1" ]; then
+            # auto-update
+            if printf '%s\n' "$diff_output" | patch "$0" -; then
+                printf "Script has been updated\n"
+            else
+                die "Can't update for some reason!"
+            fi
+            exit 0
         else
-            die "Can't update for some reason!"
+            # ask user
+            printf "An update is available. Apply it now? (N/y): "
+            read -r answer
+            case "$answer" in
+                [yY])
+                    if printf '%s\n' "$diff_output" | patch "$0" -; then
+                        printf "Script has been updated\n"
+                    else
+                        die "Can't update for some reason!"
+                    fi
+                    exit 0
+                    ;;
+                *)
+                    printf "Update skipped.\n"
+                    ;;
+            esac
         fi
     fi
-    exit 0
 }
+
 
 dep_ch() {
     for dep; do
@@ -502,6 +524,7 @@ Darwin*) player_function="${MUSIC_CLI_PLAYER:-afplay}" ;;
 esac
 
 force_download=0
+update=0
 
 use_external_menu="${MUSIC_CLI_EXTERNAL_MENU:-0}"
 use_youtube_fallback="${MUSIC_CLI_YOUTUBE_FALLBACK:-1}"
@@ -619,7 +642,7 @@ while [ $# -gt 0 ]; do
         ;;
     -v | --version) version_info ;;
     -h | --help) help_info ;;
-    -U | --update) update_script ;;
+    -U | --update) update=1;;
     -*) die "Unknown option: $1" ;;
     *) query="$(printf "%s" "$query $1" | sed "s|^ ||")" ;;
     esac
@@ -644,6 +667,9 @@ download)
 flatpak_mpv) ;;
 *) dep_ch "$player_function" ;;
 esac
+
+# Update the script
+update_script
 
 # Get search query if not provided
 if [ "$use_external_menu" = "0" ]; then
