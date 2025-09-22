@@ -45,7 +45,7 @@ Run it with
 Optionally add it to your `$PATH`:
 
 ```bash
-sudo ln -s $(pwd)/music-cli.sh /usr/local/bin/music-cli
+sudo ln -s $(pwd)/music-cli /usr/local/bin/music-cli
 ```
 
 Now run with:
