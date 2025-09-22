@@ -12,7 +12,7 @@ Search, stream, and download songs from **JioSaavn** and **YouTube** — right f
 * 📜 Keeps **play history** for easy resume
 * 📺 Play **YouTube playlists** directly
 * 🔄 Loop songs, background playback, and fallback between JioSaavn ↔ YouTube
-* 🖥️ Choose between **fzf** or **rofi** as menu UI
+* 🖥️ Choose between **fzf** or **rofi** as menu UI with custom rofi styling
 
 ## 📦 Dependencies
 
@@ -75,6 +75,7 @@ Options:
   -r, --radio [station] Play radio station continuously (Pop, Jazz, Rock, Romance, etc.)
   -R, --record          Record while playing (saves stream to file using mpv cache)
   --rofi                Use rofi instead of fzf
+  --rofi-args "args"    Use rofi with custom arguments (automatically enables --rofi)
   -h, --help            Show this help
   -v, --version         Show version
   -P, --yt-playlist URL plays a playlist from yt
@@ -102,7 +103,30 @@ music-cli -y never gonna give you up
 
 # Play a YouTube playlist
 music-cli -P "https://youtube.com/playlist?list=..."
+
+# Use rofi with custom styling
+music-cli --rofi-args "-theme gruvbox-dark -font 'JetBrains Mono 12'" believer
+
+# Use rofi with custom width and colors
+music-cli --rofi-args "-width 50 -theme-str 'window {background-color: #282828;}'" imagine dragons
 ```
+
+## 🎨 Rofi Customization
+
+The `--rofi-args` option allows you to customize rofi's appearance and behavior:
+
+```bash
+# Custom theme
+music-cli --rofi-args "-theme ~/.config/rofi/music.rasi" song_name
+
+# Custom font and colors
+music-cli --rofi-args "-font 'Fira Code 14' -theme-str 'window {background-color: #1e1e2e;}'" song_name
+
+# Custom width and position
+music-cli --rofi-args "-width 60 -location 2" song_name
+```
+
+Any valid rofi arguments can be passed through `--rofi-args`. This automatically enables rofi mode, so you don't need to specify `--rofi` separately.
 
 ## 📂 History
 
