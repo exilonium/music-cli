@@ -4,7 +4,13 @@ version_number="1.0.0"
 
 # UI Functions (adapted from ani-cli)
 external_menu() {
-    rofi "$1" -sort -dmenu -i -width 1500 -p "$2" "$3"
+    if [ -n "$external_menu_args" ]; then
+        # Use custom rofi arguments (user-defined args override defaults)
+        eval "rofi $external_menu_args -sort -dmenu -i -p \"$2\""
+    else
+        # Use default rofi arguments
+        rofi "$1" -sort -dmenu -i -width 1500 -p "$2" "$3"
+    fi
 }
 
 launcher() {
@@ -64,6 +70,9 @@ help_info() {
         Record while playing (saves stream to file using mpv cache)
       --rofi
         Use rofi instead of fzf
+      --rofi-args \"arguments\"
+        Use rofi with custom arguments (automatically enables --rofi)
+        Example: --rofi-args \"-theme gruvbox-dark -font 'JetBrains Mono 12'\"
       -h, --help
         Show this help
       -v, --version
@@ -529,6 +538,7 @@ force_download=0
 update=0
 
 use_external_menu="${MUSIC_CLI_EXTERNAL_MENU:-0}"
+external_menu_args="${MUSIC_CLI_ROFI_ARGS:-}"
 use_youtube_fallback="${MUSIC_CLI_YOUTUBE_FALLBACK:-1}"
 use_youtube=0
 loop_enabled=0
@@ -632,6 +642,12 @@ while [ $# -gt 0 ]; do
         exit 0
         ;;
     --rofi) use_external_menu=1 ;;
+    --rofi-args)
+        [ $# -lt 2 ] && die "missing argument for --rofi-args!"
+        use_external_menu=1
+        external_menu_args="$2"
+        shift
+        ;;
     -P | --yt-playlist)
         shift
         playlist_url="$1"
