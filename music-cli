@@ -790,9 +790,9 @@ if [ "$play_in_background" = 0 ] && [ "$player_function" != "download" ]; then
     while true; do
         # Determine the other source name for the menu based on current source
         if [ "$use_youtube" = 1 ]; then
-            other_source="re-search jiosaavn"
+            other_source="play on jiosaavn"
         else
-            other_source="re-search youtube"
+            other_source="play on youtube"
         fi
         
         cmd=$(printf "replay\ndownload\n%s\nquit" "$other_source" | nth "Song finished. What next? ")
@@ -816,7 +816,7 @@ if [ "$play_in_background" = 0 ] && [ "$player_function" != "download" ]; then
             play_song
             player_function="$old_player_function"
             ;;
-        "search other source"|"search jiosaavn"|"search youtube")
+        "play on jiosaavn"|"play on youtube")
             # Search on the opposite source with current song title
             search_query="$song_title"
             
