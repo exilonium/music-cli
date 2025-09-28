@@ -425,51 +425,6 @@ play_song() {
         printf "${CLEAR_LINE}${GREEN}Now Playing (JioSaavn):${NC} %s - %s [%s]\n" "$artist_name" "$song_title" "$duration_formatted"
     fi
 
-    case "$player_function" in
-    download)
-        filename="${artist_name} - ${song_title}"
-        filename=$(printf '%s' "$filename" | tr '/' '_' | tr '?' '_' | tr '"' '_' | tr '<' '_' | tr '>' '_' | tr '|' '_' | tr '*' '_')
-        download_song "$song_url" "$filename"
-        ;;
-    mpv*)
-        if [ "$play_in_background" = 1 ]; then
-            nohup $player_function --no-video --force-media-title="$artist_name - $song_title" --no-sub $loop_flag "$song_url" >/dev/null 2>&1 &
-            printf "${CLEAR_LINE}${BLUE}run 'pkill mpv' to stop...${NC}\n"
-        else
-            $player_function --no-video --force-media-title="$artist_name - $song_title" --no-sub  $loop_flag "$song_url"
-        fi
-        ;;
-    flatpak_mpv)
-        if [ "$play_in_background" = 1 ]; then
-            nohup flatpak run io.mpv.Mpv --no-video --force-media-title="$artist_name - $song_title" --no-sub $loop_flag "$song_url" >/dev/null 2>&1 &
-            printf "${CLEAR_LINE}${BLUE}run 'pkill mpv' to stop...${NC}\n"
-        else
-            flatpak run io.mpv.Mpv --no-video --force-media-title="$artist_name - $song_title" --no-sub $loop_flag "$song_url"
-        fi
-        ;;
-    *)
-        if [ "$play_in_background" = 1 ]; then
-            nohup $player_function "$song_url" >/dev/null 2>&1 &
-        else
-            $player_function "$song_url"
-        fi
-        ;;
-    esac
-
-    update_history
-    unset song_url
-}
-play_song() {
-    [ -z "$song_url" ] && die "Could not get song URL!"
-
-    # Format song info for display
-    if [ "$use_youtube" = 1 ]; then
-        printf "${CLEAR_LINE}${GREEN}Now Playing (YouTube):${NC} %s - %s\n" "$artist_name" "$song_title"
-    else
-        duration_formatted=$(format_duration $duration)
-        printf "${CLEAR_LINE}${GREEN}Now Playing (JioSaavn):${NC} %s - %s [%s]\n" "$artist_name" "$song_title" "$duration_formatted"
-    fi
-
     # If recording is enabled, download first then play the file
     if [ "$record_while_playing" = 1 ]; then
         filename="${artist_name} - ${song_title}"
