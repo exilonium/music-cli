@@ -81,6 +81,8 @@ help_info() {
         Staion Name is case sensitive,if no name is passed, the script will fetch automatically and list
       -R, --record
         Record while playing (saves stream to file using mpv cache)
+      -a, --album
+        Search and browse albums instead of individual songs
       --rofi
         Use rofi instead of fzf
       --rofi-args \"arguments\"
@@ -152,6 +154,28 @@ dep_ch() {
     for dep; do
         command -v "${dep%% *}" >/dev/null || die "Program \"${dep%% *}\" not found. Please install it."
     done
+}
+
+# JIO SAAVN ALBUM SEARCH FUNCTIONS
+search_albums() {
+    query="$1"
+
+    # URL encode the query
+    encoded_query=$(printf '%s' "$query" | sed 's/ /+/g')
+
+    response=$(curl -s "https://www.jiosaavn.com/api.php?p=1&q=$encoded_query&_format=json&_marker=0&api_version=4&ctx=web6dot0&n=20&__call=search.getAlbumResults")
+
+    printf '%s' "$response" | jq -r '.results[]? | [.perma_url, .title, (.subtitle // "Unknown Artist"), .year, (.more_info.song_count // "0")] | @tsv' |
+        nl -w2 -s$'\t' | sed 's/^[[:space:]]*//'
+}
+
+get_album_songs() {
+    album_token="$1"
+
+    response=$(curl -s "https://www.jiosaavn.com/api.php?__call=webapi.get&token=$album_token&type=album&includeMetaTags=0&ctx=wap6dot0&api_version=4&_format=json&_marker=0")
+
+    printf '%s' "$response" | jq -r '.list[]? | [.id, .title, (.more_info.artistMap.primary_artists[0].name // "Unknown Artist"), (.more_info.album // "Unknown Album"), (.more_info.duration // "0")] | @tsv' |
+        nl -w2 -s$'\t' | sed 's/^[[:space:]]*//'
 }
 
 # YOUTUBE FUNCTIONS
@@ -238,6 +262,7 @@ play_radio() {
     
     [ -z "$station_id" ] && die "Failed to create radio station for: $station_name"
     
+    printf "${BLUE}Radio station created. Playing continuously... (Ctrl+C to stop)${NC}\n"
     printf "${BLUE}Radio station created. Playing continuously... (Ctrl+C to stop)${NC}\n"
     
     # Radio loop
@@ -505,6 +530,8 @@ esac
 force_download=0
 update=0
 
+album_search=0
+
 use_external_menu="${MUSIC_CLI_EXTERNAL_MENU:-0}"
 external_menu_args="${MUSIC_CLI_ROFI_ARGS:-}"
 use_youtube_fallback="${MUSIC_CLI_YOUTUBE_FALLBACK:-1}"
@@ -609,6 +636,7 @@ while [ $# -gt 0 ]; do
         play_radio "$radio_station"
         exit 0
         ;;
+    -a | --album) album_search=1 ;;
     --rofi) use_external_menu=1 ;;
     --rofi-args)
         [ $# -lt 2 ] && die "missing argument for --rofi-args!"
@@ -668,7 +696,60 @@ else
 fi
 
 # Search and select
-if [ "$use_youtube" = 1 ]; then
+
+if [ "$album_search" = 1 ]; then
+    printf "${CLEAR_LINE}${BLUE}Searching albums...${NC}\n"
+    album_results=$(search_albums "$query")
+    [ -z "$album_results" ] && die "No album results found!"
+    
+    selected_album=$(printf '%s' "$album_results" | nth "Select album: ")
+    [ -z "$selected_album" ] && exit 1
+    
+    # Extract album info
+    album_title=$(printf '%s' "$selected_album" | cut -f2)
+    album_artist=$(printf '%s' "$selected_album" | cut -f3)
+    perma_url=$(printf '%s' "$selected_album" | cut -f1)
+    album_token=$(printf '%s' "$perma_url" | sed 's/.*\/\([^\/]*\)_$/\1/')
+    total_songs=$(printf '%s' "$selected_album" | cut -f5)
+    
+    printf "${GREEN}════════════════════════════════════════${NC}\n"
+    printf "${GREEN}♪ Album: ${WHITE}%s${NC}\n" "$album_title"
+    printf "${GREEN}♪ Artist: ${WHITE}%s${NC}\n" "$album_artist" 
+    printf "${GREEN}♪ Tracks: ${WHITE}%d${NC}\n" "$total_songs"
+    printf "${GREEN}════════════════════════════════════════${NC}\n\n"
+
+    song_results=$(get_album_songs "$album_token")
+    [ -z "$song_results" ] && die "No songs found in album!"
+    
+    printf "${BLUE}Album Loaded. Playing continuously... (Ctrl+C to stop)${NC}\n"
+    
+    # Play each song in the album
+    current_track=1
+    printf '%s\n' "$song_results" | while IFS=$'\t' read -r track_num song_id song_title artist_name album_name duration; do
+        printf "${CYAN}[%d/%d] Now Playing: %s - %s${NC}\n" "$current_track" "$total_songs" "$artist_name" "$song_title"
+        
+        # Get song details and URL
+        song_details=$(get_song_details "$song_id")
+        encrypted_url=$(printf '%s' "$song_details" | jq -r '.more_info.encrypted_media_url // empty')
+        
+        if [ -n "$encrypted_url" ]; then
+            song_url=$(get_song_url "$encrypted_url" "$quality")
+            if [ -n "$song_url" ]; then
+                play_song
+                update_history
+            else
+                printf "${YELLOW}Skipping %s (no URL available)${NC}\n" "$song_title"
+            fi
+        fi
+        
+        current_track=$((current_track + 1))
+        unset song_url
+    done
+    
+    printf "\n${GREEN}Album playback complete!${NC}\n"
+    exit 0
+
+elif [ "$use_youtube" = 1 ]; then
     printf "${CLEAR_LINE}${BLUE}Searching YouTube...${NC}\n"
     results=$(search_youtube "$query")
     [ -z "$results" ] && die "No YouTube results found!"
