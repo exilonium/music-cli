@@ -263,7 +263,6 @@ play_radio() {
     [ -z "$station_id" ] && die "Failed to create radio station for: $station_name"
     
     printf "${BLUE}Radio station created. Playing continuously... (Ctrl+C to stop)${NC}\n"
-    printf "${BLUE}Radio station created. Playing continuously... (Ctrl+C to stop)${NC}\n"
     
     # Radio loop
     next=1
