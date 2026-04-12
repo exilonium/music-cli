@@ -303,7 +303,7 @@ play_youtube_playlist() {
 }
 
 get_radio_stations() {
-    curl -s '${JIOSAAVN_API}?__call=webradio.getFeaturedStations&api_version=4&_format=json&_marker=0&ctx=web6dot0&languages=english' |
+    curl -s "${JIOSAAVN_API}?__call=webradio.getFeaturedStations&api_version=4&_format=json&_marker=0&ctx=web6dot0&languages=english" |
         jq -r '.[] | objects | .id | select(. != null and . != "")' 2>/dev/null
 }
 
