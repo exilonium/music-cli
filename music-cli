@@ -213,7 +213,7 @@ search_albums() {
 
     response=$(curl -s "https://www.jiosaavn.com/api.php?p=1&q=$encoded_query&_format=json&_marker=0&api_version=4&ctx=web6dot0&n=20&__call=search.getAlbumResults")
 
-    printf '%s' "$response" | jq -r '.results[]? | [.perma_url, .title, (.subtitle // "Unknown Artist"), .year, (.more_info.song_count // "0"), .image] | @tsv' |
+    printf '%s' "$response" | jq -r '.results[]? | [.perma_url, .title, (.subtitle // "Unknown Artist"), .year, (.more_info.song_count // "0"), ((.image // "") | sub("150x150"; "500x500") | sub("50x50"; "500x500"))] | @tsv' |
         nl -w2 -s$'\t' | sed 's/^[[:space:]]*//'
 }
 
@@ -222,7 +222,7 @@ get_album_songs() {
 
     response=$(curl -s "https://www.jiosaavn.com/api.php?__call=webapi.get&token=$album_token&type=album&includeMetaTags=0&ctx=wap6dot0&api_version=4&_format=json&_marker=0")
 
-    printf '%s' "$response" | jq -r '.list[]? | [.id, .title, (.more_info.artistMap.primary_artists[0].name // "Unknown Artist"), (.more_info.album // "Unknown Album"), (.more_info.duration // "0"), (.image // .more_info.image // "")] | @tsv' |
+    printf '%s' "$response" | jq -r '.list[]? | [.id, .title, (.more_info.artistMap.primary_artists[0].name // "Unknown Artist"), (.more_info.album // "Unknown Album"), (.more_info.duration // "0"), (((.image // .more_info.image // "") | sub("150x150"; "500x500") | sub("50x50"; "500x500")))] | @tsv' |
         nl -w2 -s$'\t' | sed 's/^[[:space:]]*//'
 }
 
@@ -370,7 +370,7 @@ search_music() {
 
     response=$(curl -s "https://www.jiosaavn.com/api.php?p=1&q=$encoded_query&_format=json&_marker=0&api_version=4&ctx=web6dot0&n=20&__call=search.getResults")
 
-    printf '%s' "$response" | jq -r '.results[]? | [.id, .title, (.more_info.artistMap.primary_artists[0].name // "Unknown Artist"), (.more_info.album // "Unknown Album"), (.more_info.duration // "0"), (.image // .more_info.image // "")] | @tsv' |
+    printf '%s' "$response" | jq -r '.results[]? | [.id, .title, (.more_info.artistMap.primary_artists[0].name // "Unknown Artist"), (.more_info.album // "Unknown Album"), (.more_info.duration // "0"), (((.image // .more_info.image // "") | sub("150x150"; "500x500") | sub("50x50"; "500x500")))] | @tsv' |
         nl -w2 -s$'\t' | sed 's/^[[:space:]]*//'
 }
 
@@ -567,30 +567,10 @@ hide_thumbnail() {
     fi
 }
 
-get_hq_thumbnail() {
-    thumbnail_url="$1"
-    
-    if [ -z "$thumbnail_url" ] || [ "$thumbnail_url" = "null" ]; then
-        return 1
-    fi
-    
-    # Convert to higher resolution (500x500 instead of 150x150 or 50x50)
-    hq_url=$(printf '%s' "$thumbnail_url" | sed 's/150x150/500x500/g;s/50x50/500x500/g')
-    
-    printf '%s' "$hq_url"
-}
-
 play_song() {
     [ -z "$song_url" ] && die "Could not get song URL!"
 
-    # Get high quality thumbnail if it's from JioSaavn
-    case "$image_url" in
-        *saavncdn.com*) hq_image_url=$(get_hq_thumbnail "$image_url") ;;
-        *) hq_image_url="$image_url" ;;
-    esac
-
-    # Show thumbnail using exact thumb_test function
-    show_thumbnail_kitty "$hq_image_url" "$song_title" "$artist_name"
+    show_thumbnail_kitty "$image_url" "$song_title" "$artist_name"
 
     # Format song info for display
     if [ "$use_youtube" = 1 ]; then
@@ -771,7 +751,7 @@ while [ $# -gt 0 ]; do
                 song_details=$(get_song_details "$song_id") || die "Failed to get song details!"
                 encrypted_url=$(jq -r '.more_info.encrypted_media_url // empty' <<<"$song_details")
                 duration=$(jq -r '.more_info.duration // "0"' <<<"$song_details")
-                image_url=$(jq -r '.image // empty' <<<"$song_details")
+                image_url=$(jq -r '.image // empty | sub("150x150"; "500x500") | sub("50x50"; "500x500")' <<<"$song_details")
 
                 [ -z "$encrypted_url" ] && die "Could not get song details!"
 
@@ -912,7 +892,7 @@ if [ "$album_search" = 1 ]; then
         encrypted_url=$(printf '%s' "$song_details" | jq -r '.more_info.encrypted_media_url // empty')
         
         if [ -z "$image_url" ] || [ "$image_url" = "null" ]; then
-            image_url=$(printf '%s' "$song_details" | jq -r '.image // empty')
+            image_url=$(printf '%s' "$song_details" | jq -r '.image // empty | sub("150x150"; "500x500") | sub("50x50"; "500x500")')
         fi
 
         if [ -n "$encrypted_url" ]; then
@@ -1085,7 +1065,7 @@ if [ "$play_in_background" = 0 ] && [ "$player_function" != "download" ]; then
                 [ -z "$encrypted_url" ] && { printf "${RED}⚠️ Failed to get song details!${NC}\n"; continue; }
                 
                 if [ -z "$image_url" ] || [ "$image_url" = "null" ]; then
-                    image_url=$(printf '%s' "$song_details" | jq -r '.image // empty')
+                    image_url=$(printf '%s' "$song_details" | jq -r '.image // empty | sub("150x150"; "500x500") | sub("50x50"; "500x500")')
                 fi
 
                 printf "${BLUE}%s Getting song URL...${NC}\n" "$ICON_PLAY"
