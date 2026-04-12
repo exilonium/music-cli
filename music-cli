@@ -46,8 +46,15 @@ external_menu() {
 
 launcher() {
     [ "$use_external_menu" = "0" ] && [ -z "$1" ] && set -- "+m" "$2"
-    [ "$use_external_menu" = "0" ] && fzf "$1" --reverse --cycle --prompt "$2"
-    [ "$use_external_menu" = "1" ] && external_menu "$1" "$2" "$external_menu_args"
+    if [ "$use_external_menu" = "0" ]; then
+        fzf "$1" --reverse --cycle --prompt "$2" \
+            --height=85% --border=rounded --margin=1 --padding=1 \
+            --header-first --header="Use arrow keys or type to filter" \
+            --color="fg:#d0d0d0,bg:-1,hl:#5fafd7,fg+:#ffffff,bg+:#262626,hl+:#5fafd7" \
+            --color="info:#afaf87,prompt:#87afd7,pointer:#ff5f87,marker:#ffaf00,spinner:#af5fff,header:#87afd7"
+    else
+        external_menu "$1" "$2" "$external_menu_args"
+    fi
 }
 
 nth() {
@@ -58,9 +65,30 @@ nth() {
     prompt="$1"
     multi_flag=""
     [ $# -ne 1 ] && shift && multi_flag="$1"
-    line=$(printf "%s" "$stdin" | cut -f1,3- | tr '\t' ' ' | launcher "$multi_flag" "$prompt" | cut -d " " -f 1)
-    [ -n "$line" ] || exit 1
-    printf "%s" "$stdin" | grep -E '^'"${line}"'($|[[:space:]])' | cut -f2- || exit 1
+    
+    # If it's a simple menu (no tabs), skip formatting
+    if ! printf "%s" "$stdin" | grep -q $'\t'; then
+        printf "%s" "$stdin" | launcher "$multi_flag" "$prompt"
+        return
+    fi
+
+    if [ "$use_external_menu" = "0" ]; then
+        # FZF version: Premium layout with delimiters
+        line=$(printf "%s" "$stdin" | fzf $multi_flag --reverse --cycle --prompt "$prompt" \
+            --height=85% --border=rounded --margin=1 --padding=1 \
+            --header-first --header="Index | Title | Artist | Album | Duration" \
+            --delimiter $'\t' --with-nth 1,3,4,5,6 \
+            --color="fg:#d0d0d0,bg:-1,hl:#5fafd7,fg+:#ffffff,bg+:#262626,hl+:#5fafd7" \
+            --color="info:#afaf87,prompt:#87afd7,pointer:#ff5f87,marker:#ffaf00,spinner:#af5fff,header:#87afd7")
+        [ -n "$line" ] || exit 1
+        printf "%s" "$line" | cut -f2-
+    else
+        # Rofi version
+        display_stdin=$(printf "%s" "$stdin" | format_results)
+        line=$(printf "%s" "$display_stdin" | external_menu "$multi_flag" "$prompt" | cut -d " " -f 1)
+        [ -n "$line" ] || exit 1
+        printf "%s" "$stdin" | grep -E '^'"${line}"'($|[[:space:]])' | cut -f2- || exit 1
+    fi
 }
 
 die() {
