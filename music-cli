@@ -46,6 +46,8 @@ external_menu_args="${MUSIC_CLI_ROFI_ARGS:-}"
 use_youtube_fallback="${MUSIC_CLI_YOUTUBE_FALLBACK:-1}"
 use_youtube=0
 loop_enabled=0
+radio_mode=0
+radio_station=""
 show_thumbnails="${MUSIC_CLI_SHOW_THUMBNAILS:-1}"
 hist_dir="${MUSIC_CLI_HIST_DIR:-${XDG_STATE_HOME:-$HOME/.local/state}/music-cli}"
 [ ! -d "$download_dir" ] && mkdir -p "$download_dir"
@@ -776,21 +778,11 @@ while [ $# -gt 0 ]; do
         record_while_playing=1
         ;;
     -r | --radio)
+        radio_mode=1
         if [ $# -gt 1 ] && [ "${2#-}" = "$2" ]; then
             shift
             radio_station="$1"
         fi
-        
-        printf "${BLUE}Checking dependencies...${NC}\n"
-        dep_ch "curl" "jq"
-        case "$player_function" in
-            *android*) ;;
-            flatpak_mpv) ;;
-            *) dep_ch "$player_function" ;;
-        esac
-        
-        play_radio "$radio_station"
-        exit 0
         ;;
     -a | --album) album_search=1 ;;
     -nt | --no-thumb) show_thumbnails=0 ;;
@@ -819,6 +811,19 @@ while [ $# -gt 0 ]; do
     esac
     shift
 done
+
+# Handle radio mode (after all args are parsed so -nt etc are respected)
+if [ "$radio_mode" = 1 ]; then
+    printf "${BLUE}Checking dependencies...${NC}\n"
+    dep_ch "curl" "jq"
+    case "$player_function" in
+        *android*) ;;
+        flatpak_mpv) ;;
+        *) dep_ch "$player_function" ;;
+    esac
+    play_radio "$radio_station"
+    exit 0
+fi
 
 # Check dependencies
 printf "${CLEAR_LINE}${BLUE}Checking dependencies...${NC}\n"
