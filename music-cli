@@ -1,6 +1,6 @@
 #!/bin/sh
 
-version_number="1.0.0"
+version_number="1.1.0"
 
 # Colors and UI Icons
 BOLD='\033[1m'
@@ -27,7 +27,7 @@ ICON_RADIO='📻'
 CLEAR_LINE='\033[2K\r'
 
 sanitize_filename() {
-    printf '%s' "$1" | tr '/' '_' | tr '?' '_' | tr '"' '_' | tr '<' '_' | tr '>' '_' | tr '|' '_' | tr '*' '_'
+  printf '%s' "$1" | tr '/' '_' | tr '?' '_' | tr '"' '_' | tr '<' '_' | tr '>' '_' | tr '|' '_' | tr '*' '_'
 }
 
 JIOSAAVN_API="https://www.jiosaavn.com/api.php"
@@ -54,81 +54,81 @@ hist_dir="${MUSIC_CLI_HIST_DIR:-${XDG_STATE_HOME:-$HOME/.local/state}/music-cli}
 [ ! -d "$hist_dir" ] && mkdir -p "$hist_dir"
 
 show_banner() {
-    clear
-    printf "${BLUE}┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓${NC}\n"
-    printf "${BLUE}┃${NC}   ${CYAN}${BOLD} music-cli by exilonium${NC} ${DIM}v%s${NC}                         ${BLUE}┃${NC}\n" "$version_number"
-    printf "${BLUE}┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛${NC}\n\n"
+  clear
+  printf "${BLUE}┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓${NC}\n"
+  printf "${BLUE}┃${NC}   ${CYAN}${BOLD} music-cli by exilonium${NC} ${DIM}v%s${NC}                       ${BLUE}┃${NC}\n" "$version_number"
+  printf "${BLUE}┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛${NC}\n\n"
 }
 
 # UI Functions (adapted from ani-cli)
 external_menu() {
-    if [ -n "$external_menu_args" ]; then
-        # Use custom rofi arguments (user-defined args override defaults)
-        eval "rofi $external_menu_args -sort -dmenu -i -p \"$2\""
-    else
-        # Use default rofi arguments
-        rofi "$1" -sort -dmenu -i -width 1500 -p "$2" "$3"
-    fi
+  if [ -n "$external_menu_args" ]; then
+    # Use custom rofi arguments (user-defined args override defaults)
+    eval "rofi $external_menu_args -sort -dmenu -i -p \"$2\""
+  else
+    # Use default rofi arguments
+    rofi "$1" -sort -dmenu -i -width 1500 -p "$2" "$3"
+  fi
 }
 
 launcher() {
-    [ "$use_external_menu" = "0" ] && [ -z "$1" ] && set -- "+m" "$2"
-    if [ "$use_external_menu" = "0" ]; then
-        fzf "$1" --reverse --cycle --prompt "$2" \
-            --height=85% --border=rounded --margin=1 --padding=1 \
-            --header-first --header="Use arrow keys or type to filter" \
-            --color="fg:#d0d0d0,bg:-1,hl:#5fafd7,fg+:#ffffff,bg+:#262626,hl+:#5fafd7" \
-            --color="info:#afaf87,prompt:#87afd7,pointer:#ff5f87,marker:#ffaf00,spinner:#af5fff,header:#87afd7"
-    else
-        external_menu "$1" "$2" "$external_menu_args"
-    fi
+  [ "$use_external_menu" = "0" ] && [ -z "$1" ] && set -- "+m" "$2"
+  if [ "$use_external_menu" = "0" ]; then
+    fzf "$1" --reverse --cycle --prompt "$2" \
+      --height=85% --border=rounded --margin=1 --padding=1 \
+      --header-first --header="Use arrow keys or type to filter" \
+      --color="fg:#d0d0d0,bg:-1,hl:#5fafd7,fg+:#ffffff,bg+:#262626,hl+:#5fafd7" \
+      --color="info:#afaf87,prompt:#87afd7,pointer:#ff5f87,marker:#ffaf00,spinner:#af5fff,header:#87afd7"
+  else
+    external_menu "$1" "$2" "$external_menu_args"
+  fi
 }
 format_results() {
-    # Extract Index, Title, Artist, Album, Duration for clean rofi display
-    cut -f1,3,4,5,6 | awk -F'\t' '{printf "%-5s %-40.40s %-25.25s %-20.20s %s\n", $1, $2, $3, $4, $5}'
+  # Extract Index, Title, Artist, Album, Duration for clean rofi display
+  cut -f1,3,4,5,6 | awk -F'\t' '{printf "%-5s %-40.40s %-25.25s %-20.20s %s\n", $1, $2, $3, $4, $5}'
 }
 
 nth() {
-    stdin=$(cat -)
-    [ -z "$stdin" ] && return 1
-    line_count="$(printf "%s\n" "$stdin" | wc -l | tr -d "[:space:]")"
-    [ "$line_count" -eq 1 ] && printf "%s" "$stdin" | cut -f2- && return 0
-    prompt="$1"
-    multi_flag=""
-    [ $# -ne 1 ] && shift && multi_flag="$1"
-    
-    # If it's a simple menu (no tabs), skip formatting
-    if ! printf "%s" "$stdin" | grep -q $'\t'; then
-        printf "%s" "$stdin" | launcher "$multi_flag" "$prompt"
-        return
-    fi
+  stdin=$(cat -)
+  [ -z "$stdin" ] && return 1
+  line_count="$(printf "%s\n" "$stdin" | wc -l | tr -d "[:space:]")"
+  [ "$line_count" -eq 1 ] && printf "%s" "$stdin" | cut -f2- && return 0
+  prompt="$1"
+  multi_flag=""
+  [ $# -ne 1 ] && shift && multi_flag="$1"
 
-    if [ "$use_external_menu" = "0" ]; then
-        # FZF version: Premium layout with delimiters
-        line=$(printf "%s" "$stdin" | fzf $multi_flag --reverse --cycle --prompt "$prompt" \
-            --height=85% --border=rounded --margin=1 --padding=1 \
-            --header-first --header="Index | Title | Artist | Album | Duration" \
-            --delimiter $'\t' --with-nth 1,3,4,5,6 \
-            --color="fg:#d0d0d0,bg:-1,hl:#5fafd7,fg+:#ffffff,bg+:#262626,hl+:#5fafd7" \
-            --color="info:#afaf87,prompt:#87afd7,pointer:#ff5f87,marker:#ffaf00,spinner:#af5fff,header:#87afd7")
-        [ -n "$line" ] || exit 1
-        printf "%s" "$line" | cut -f2-
-    else
-        # Rofi version
-        display_stdin=$(printf "%s" "$stdin" | format_results)
-        line=$(printf "%s" "$display_stdin" | external_menu "$multi_flag" "$prompt" | cut -d " " -f 1)
-        [ -n "$line" ] || exit 1
-        printf "%s" "$stdin" | grep -E '^'"${line}"'($|[[:space:]])' | cut -f2- || exit 1
-    fi
+  # If it's a simple menu (no tabs), skip formatting
+  if ! printf "%s" "$stdin" | grep -q $'\t'; then
+    printf "%s" "$stdin" | launcher "$multi_flag" "$prompt"
+    return
+  fi
+
+  if [ "$use_external_menu" = "0" ]; then
+    # FZF version: Premium layout with delimiters
+    line=$(printf "%s" "$stdin" | fzf $multi_flag --reverse --cycle --prompt "$prompt" \
+      --height=85% --border=rounded --margin=1 --padding=1 \
+      --header-first --header="Index | Title | Artist | Album | Duration" \
+      --delimiter $'\t' --with-nth 1,3,4,5,6 \
+      --color="fg:#d0d0d0,bg:-1,hl:#5fafd7,fg+:#ffffff,bg+:#262626,hl+:#5fafd7" \
+      --color="info:#afaf87,prompt:#87afd7,pointer:#ff5f87,marker:#ffaf00,spinner:#af5fff,header:#87afd7")
+    [ -n "$line" ] || exit 1
+    printf "%s" "$line" | cut -f2-
+  else
+    # Rofi version
+    display_stdin=$(printf "%s" "$stdin" | format_results)
+    line=$(printf "%s" "$display_stdin" | external_menu "$multi_flag" "$prompt" | cut -d " " -f 1)
+    [ -n "$line" ] || exit 1
+    printf "%s" "$stdin" | grep -E '^'"${line}"'($|[[:space:]])' | cut -f2- || exit 1
+  fi
 }
 
 die() {
-    printf "${CLEAR_LINE}${RED}%s${NC}\n" "$*" >&2
-    exit 1
+  printf "${CLEAR_LINE}${RED}%s${NC}\n" "$*" >&2
+  exit 1
 }
 
 help_info() {
-    printf "
+  printf "
     Usage:
     %s [options] [query]
 
@@ -184,172 +184,171 @@ help_info() {
       %s -d imagine dragons
       %s -y never gonna give you up
     \n" "${0##*/}" "${0##*/}" "${0##*/}" "${0##*/}" "${0##*/}" "${0##*/}"
-    exit 0
+  exit 0
 }
 
 version_info() {
-    printf "%s\n" "$version_number"
-    exit 0
+  printf "%s\n" "$version_number"
+  exit 0
 }
 
 update_script() {
-    remote="$(curl -s -A "$agent" "https://raw.githubusercontent.com/exilonium/music-cli/main/music-cli")" || die "Connection error"
-    diff_output="$(printf '%s\n' "$remote" | diff -u "$0" -)"
+  remote="$(curl -s -A "$agent" "https://raw.githubusercontent.com/exilonium/music-cli/main/music-cli")" || die "Connection error"
+  diff_output="$(printf '%s\n' "$remote" | diff -u "$0" -)"
 
-    if [ -z "$diff_output" ]; then
-        printf "Script is up to date :)\n"
+  if [ -z "$diff_output" ]; then
+    printf "Script is up to date :)\n"
+  else
+    if [ "$update" = "1" ]; then
+      # auto-update
+      if printf '%s\n' "$diff_output" | patch "$0" -; then
+        printf "Script has been updated\n"
+      else
+        die "Can't update for some reason!"
+      fi
+      exit 0
     else
-        if [ "$update" = "1" ]; then
-            # auto-update
-            if printf '%s\n' "$diff_output" | patch "$0" -; then
-                printf "Script has been updated\n"
-            else
-                die "Can't update for some reason!"
-            fi
-            exit 0
+      # ask user
+      printf "An update is available. Apply it now? (N/y): "
+      read -r answer
+      case "$answer" in
+      [yY])
+        if printf '%s\n' "$diff_output" | patch "$0" -; then
+          printf "Script has been updated\n"
         else
-            # ask user
-            printf "An update is available. Apply it now? (N/y): "
-            read -r answer
-            case "$answer" in
-                [yY])
-                    if printf '%s\n' "$diff_output" | patch "$0" -; then
-                        printf "Script has been updated\n"
-                    else
-                        die "Can't update for some reason!"
-                    fi
-                    exit 0
-                    ;;
-                *)
-                    printf "Update skipped.\n"
-                    ;;
-            esac
+          die "Can't update for some reason!"
         fi
+        exit 0
+        ;;
+      *)
+        printf "Update skipped.\n"
+        ;;
+      esac
     fi
+  fi
 }
 
-
 dep_ch() {
-    for dep; do
-        command -v "${dep%% *}" >/dev/null || die "Program \"${dep%% *}\" not found. Please install it."
-    done
+  for dep; do
+    command -v "${dep%% *}" >/dev/null || die "Program \"${dep%% *}\" not found. Please install it."
+  done
 }
 
 # JIO SAAVN ALBUM SEARCH FUNCTIONS
 search_albums() {
-    query="$1"
+  query="$1"
 
-    # URL encode the query
-    encoded_query=$(printf '%s' "$query" | sed 's/ /+/g')
+  # URL encode the query
+  encoded_query=$(printf '%s' "$query" | sed 's/ /+/g')
 
-    response=$(curl -s "${JIOSAAVN_API}?p=1&q=$encoded_query&_format=json&_marker=0&api_version=4&ctx=web6dot0&n=20&__call=search.getAlbumResults")
+  response=$(curl -s "${JIOSAAVN_API}?p=1&q=$encoded_query&_format=json&_marker=0&api_version=4&ctx=web6dot0&n=20&__call=search.getAlbumResults")
 
-    printf '%s' "$response" | jq -r '.results[]? | [.perma_url, .title, (.subtitle // "Unknown Artist"), .year, (.more_info.song_count // "0"), ((.image // "") | sub("150x150"; "500x500") | sub("50x50"; "500x500"))] | @tsv' |
-        nl -w2 -s$'\t' | sed 's/^[[:space:]]*//'
+  printf '%s' "$response" | jq -r '.results[]? | [.perma_url, .title, (.subtitle // "Unknown Artist"), .year, (.more_info.song_count // "0"), ((.image // "") | sub("150x150"; "500x500") | sub("50x50"; "500x500"))] | @tsv' |
+    nl -w2 -s$'\t' | sed 's/^[[:space:]]*//'
 }
 
 get_album_songs() {
-    album_token="$1"
+  album_token="$1"
 
-    response=$(curl -s "${JIOSAAVN_API}?__call=webapi.get&token=$album_token&type=album&includeMetaTags=0&ctx=wap6dot0&api_version=4&_format=json&_marker=0")
+  response=$(curl -s "${JIOSAAVN_API}?__call=webapi.get&token=$album_token&type=album&includeMetaTags=0&ctx=wap6dot0&api_version=4&_format=json&_marker=0")
 
-    printf '%s' "$response" | jq -r '.list[]? | [.id, .title, (.more_info.artistMap.primary_artists[0].name // "Unknown Artist"), (.more_info.album // "Unknown Album"), (.more_info.duration // "0"), (((.image // .more_info.image // "") | sub("150x150"; "500x500") | sub("50x50"; "500x500")))] | @tsv' |
-        nl -w2 -s$'\t' | sed 's/^[[:space:]]*//'
+  printf '%s' "$response" | jq -r '.list[]? | [.id, .title, (.more_info.artistMap.primary_artists[0].name // "Unknown Artist"), (.more_info.album // "Unknown Album"), (.more_info.duration // "0"), (((.image // .more_info.image // "") | sub("150x150"; "500x500") | sub("50x50"; "500x500")))] | @tsv' |
+    nl -w2 -s$'\t' | sed 's/^[[:space:]]*//'
 }
 
 # YOUTUBE FUNCTIONS
 search_youtube() {
-    query="$1"
+  query="$1"
 
-    # Use yt-dlp to search YouTube and get results
-    yt-dlp --quiet --no-warnings --flat-playlist --print "%(id)s	%(title)s	%(uploader)s	%(duration)s	%(thumbnail)s" "ytsearch20:$query" 2>/dev/null |
-        head -20 | nl -w2 -s$'\t' | sed 's/^[[:space:]]*//'
+  # Use yt-dlp to search YouTube and get results
+  yt-dlp --quiet --no-warnings --flat-playlist --print "%(id)s	%(title)s	%(uploader)s	%(duration)s	%(thumbnail)s" "ytsearch20:$query" 2>/dev/null |
+    head -20 | nl -w2 -s$'\t' | sed 's/^[[:space:]]*//'
 }
 
 play_youtube_playlist() {
-    playlist_url="$1"
-    quality="$2"
+  playlist_url="$1"
+  quality="$2"
 
-    # Get all video IDs from playlist
-    video_ids=$(yt-dlp --flat-playlist --get-id "$playlist_url" 2>/dev/null)
+  # Get all video IDs from playlist
+  video_ids=$(yt-dlp --flat-playlist --get-id "$playlist_url" 2>/dev/null)
 
-    if [ -z "$video_ids" ]; then
-        die "No videos found in playlist!"
+  if [ -z "$video_ids" ]; then
+    die "No videos found in playlist!"
+  fi
+
+  total=$(printf '%s\n' "$video_ids" | wc -l | tr -d ' ')
+  printf "${BLUE}Found %d videos in playlist.${NC}\n" "$total"
+
+  printf '%s\n' "$video_ids" | while IFS= read -r vid; do
+    [ -z "$vid" ] && continue
+    video_id="$vid"
+    song_id="yt_${vid}"
+    use_youtube=1
+    song_url="https://www.youtube.com/watch?v=$vid"
+    image_url="https://img.youtube.com/vi/$vid/hqdefault.jpg"
+
+    # Fetch metadata (optional, to display title/artist)
+    song_info=$(yt-dlp --get-title "https://www.youtube.com/watch?v=$vid" 2>/dev/null)
+    [ -z "$song_info" ] && song_info="Unknown Title"
+
+    # Split title to get artist and song (if format is "Artist - Title")
+    if printf '%s' "$song_info" | grep -q " - "; then
+      artist_name=${song_info%% - *}
+      song_title=${song_info#* - }
+    else
+      artist_name="Unknown Artist"
+      song_title="$song_info"
     fi
 
-    total=$(printf '%s\n' "$video_ids" | wc -l | tr -d ' ')
-    printf "${BLUE}Found %d videos in playlist.${NC}\n" "$total"
-
-    printf '%s\n' "$video_ids" | while IFS= read -r vid; do
-        [ -z "$vid" ] && continue
-        video_id="$vid"
-        song_id="yt_${vid}"
-        use_youtube=1
-        song_url="https://www.youtube.com/watch?v=$vid"
-        image_url="https://img.youtube.com/vi/$vid/hqdefault.jpg"
-
-        # Fetch metadata (optional, to display title/artist)
-        song_info=$(yt-dlp --get-title "https://www.youtube.com/watch?v=$vid" 2>/dev/null)
-        [ -z "$song_info" ] && song_info="Unknown Title"
-        
-        # Split title to get artist and song (if format is "Artist - Title")
-        if printf '%s' "$song_info" | grep -q " - "; then
-            artist_name=${song_info%% - *}
-            song_title=${song_info#* - }
-        else
-            artist_name="Unknown Artist"
-            song_title="$song_info"
-        fi
-
-        printf "${GREEN}Playing:${NC} %s\n" "$song_info"
-        play_song
-    done
+    printf "${GREEN}Playing:${NC} %s\n" "$song_info"
+    play_song
+  done
 }
 
 get_radio_stations() {
-    curl -s "${JIOSAAVN_API}?__call=webradio.getFeaturedStations&api_version=4&_format=json&_marker=0&ctx=web6dot0&languages=english" |
-        jq -r '.[] | objects | .id | select(. != null and . != "")' 2>/dev/null
+  curl -s "${JIOSAAVN_API}?__call=webradio.getFeaturedStations&api_version=4&_format=json&_marker=0&ctx=web6dot0&languages=english" |
+    jq -r '.[] | objects | .id | select(. != null and . != "")' 2>/dev/null
 }
 
 select_radio_station() {
-    station_param="$1"
-    
-    if [ -z "$station_param" ]; then
-        # No parameter - show menu of available stations
-        stations=$(get_radio_stations)
-        
-        if [ -z "$stations" ]; then
-            printf "Pop\nJazz\nRock\nHip Hop\nBlues" # fallback options
-        else
-            printf '%s\n' "$stations"
-        fi | nth "Select radio station: "
+  station_param="$1"
+
+  if [ -z "$station_param" ]; then
+    # No parameter - show menu of available stations
+    stations=$(get_radio_stations)
+
+    if [ -z "$stations" ]; then
+      printf "Pop\nJazz\nRock\nHip Hop\nBlues" # fallback options
     else
-        printf "%s" "$station_param"
-    fi
+      printf '%s\n' "$stations"
+    fi | nth "Select radio station: "
+  else
+    printf "%s" "$station_param"
+  fi
 }
 
 play_radio() {
-    station_name=$(select_radio_station "$1")
-    [ -z "$station_name" ] && exit 1
+  station_name=$(select_radio_station "$1")
+  [ -z "$station_name" ] && exit 1
 
-    printf "${GREEN}%s Starting %s radio...${NC}\n" "$ICON_RADIO" "$station_name"
+  printf "${GREEN}%s Starting %s radio...${NC}\n" "$ICON_RADIO" "$station_name"
 
-    # Encode station name
-    encoded_station=$(printf '%s' "$station_name" | sed 's/ /+/g')
+  # Encode station name
+  encoded_station=$(printf '%s' "$station_name" | sed 's/ /+/g')
 
-    printf "${BLUE}%s Creating radio station...${NC}\n" "$ICON_SEARCH"
-    station_id=$(curl -s "${JIOSAAVN_API}?language=english&name=$encoded_station&api_version=4&_format=json&_marker=0&ctx=web6dot0&__call=webradio.createFeaturedStation" \
-        | jq -r '.stationid // empty' 2>/dev/null)
+  printf "${BLUE}%s Creating radio station...${NC}\n" "$ICON_SEARCH"
+  station_id=$(curl -s "${JIOSAAVN_API}?language=english&name=$encoded_station&api_version=4&_format=json&_marker=0&ctx=web6dot0&__call=webradio.createFeaturedStation" |
+    jq -r '.stationid // empty' 2>/dev/null)
 
-    [ -z "$station_id" ] && die "Failed to create radio station for: $station_name"
+  [ -z "$station_id" ] && die "Failed to create radio station for: $station_name"
 
-    printf "${BLUE}%s Radio station created. Playing continuously... (Ctrl+C to stop)${NC}\n" "$ICON_PLAY"
+  printf "${BLUE}%s Radio station created. Playing continuously... (Ctrl+C to stop)${NC}\n" "$ICON_PLAY"
 
-    next=1
+  next=1
 
-    while true; do
-        songs=$(curl -s "${JIOSAAVN_API}?__call=webradio.getSong&stationid=$station_id&k=20&next=$next&api_version=4&_format=json&_marker=0&ctx=web6dot0" | \
-        jq -r '
+  while true; do
+    songs=$(curl -s "${JIOSAAVN_API}?__call=webradio.getSong&stationid=$station_id&k=20&next=$next&api_version=4&_format=json&_marker=0&ctx=web6dot0" |
+      jq -r '
         .[]?
         | objects
         | select(.song != null)
@@ -363,332 +362,344 @@ play_radio() {
           ] | @tsv
         ' 2>/dev/null)
 
-        [ -z "$songs" ] && sleep 2 && continue
+    [ -z "$songs" ] && sleep 2 && continue
 
-        songs_tmp="/tmp/music_cli_radio_$$"
-        printf '%s\n' "$songs" > "$songs_tmp"
+    songs_tmp="/tmp/music_cli_radio_$$"
+    printf '%s\n' "$songs" >"$songs_tmp"
 
-        while IFS=$'\t' read -r s_id s_title a_name e_url i_url <&3; do
-            [ -z "$s_id" ] || [ -z "$e_url" ] && continue
+    while IFS=$'\t' read -r s_id s_title a_name e_url i_url <&3; do
+      [ -z "$s_id" ] || [ -z "$e_url" ] && continue
 
-            song_id="$s_id"
-            song_title="$s_title"
-            artist_name="$a_name"
-            encrypted_url="$e_url"
-            image_url="$i_url"
+      song_id="$s_id"
+      song_title="$s_title"
+      artist_name="$a_name"
+      encrypted_url="$e_url"
+      image_url="$i_url"
 
-            album_title="$station_name Radio"
+      album_title="$station_name Radio"
 
-            song_url=$(get_song_url "$encrypted_url" "$quality")
-            [ -z "$song_url" ] && continue
+      song_url=$(get_song_url "$encrypted_url" "$quality")
+      [ -z "$song_url" ] && continue
 
-            use_youtube=0
+      use_youtube=0
 
-            play_song || { rm -f "$songs_tmp"; exit 1; }
-            update_history
-            unset song_url
-        done 3< "$songs_tmp" || { rm -f "$songs_tmp"; break; }
-        
+      play_song || {
         rm -f "$songs_tmp"
+        exit 1
+      }
+      update_history
+      unset song_url
+    done 3<"$songs_tmp" || {
+      rm -f "$songs_tmp"
+      break
+    }
 
-        next=$((next + 1))
-    done
+    rm -f "$songs_tmp"
+
+    next=$((next + 1))
+  done
 }
 # MUSIC API FUNCTIONS
 search_music() {
-    query="$1"
+  query="$1"
 
-    # URL encode the query
-    encoded_query=$(printf '%s' "$query" | sed 's/ /+/g')
+  # URL encode the query
+  encoded_query=$(printf '%s' "$query" | sed 's/ /+/g')
 
-    response=$(curl -s "${JIOSAAVN_API}?p=1&q=$encoded_query&_format=json&_marker=0&api_version=4&ctx=web6dot0&n=20&__call=search.getResults")
+  response=$(curl -s "${JIOSAAVN_API}?p=1&q=$encoded_query&_format=json&_marker=0&api_version=4&ctx=web6dot0&n=20&__call=search.getResults")
 
-    printf '%s' "$response" | jq -r '.results[]? | [.id, .title, (.more_info.artistMap.primary_artists[0].name // "Unknown Artist"), (.more_info.album // "Unknown Album"), (.more_info.duration // "0"), (((.image // .more_info.image // "") | sub("150x150"; "500x500") | sub("50x50"; "500x500")))] | @tsv' |
-        nl -w2 -s$'\t' | sed 's/^[[:space:]]*//'
+  printf '%s' "$response" | jq -r '.results[]? | [.id, .title, (.more_info.artistMap.primary_artists[0].name // "Unknown Artist"), (.more_info.album // "Unknown Album"), (.more_info.duration // "0"), (((.image // .more_info.image // "") | sub("150x150"; "500x500") | sub("50x50"; "500x500")))] | @tsv' |
+    nl -w2 -s$'\t' | sed 's/^[[:space:]]*//'
 }
 
 get_song_details() {
-    song_id="$1"
+  song_id="$1"
 
-    response=$(curl -s "${JIOSAAVN_API}?__call=song.getDetails&pids=$song_id&api_version=4&_format=json&_marker=0&ctx=web6dot0")
+  response=$(curl -s "${JIOSAAVN_API}?__call=song.getDetails&pids=$song_id&api_version=4&_format=json&_marker=0&ctx=web6dot0")
 
-    printf '%s' "$response" | jq -r '.songs[0]'
+  printf '%s' "$response" | jq -r '.songs[0]'
 }
 
 get_song_url() {
-    encrypted_url="$1"
-    bitrate="$2"
+  encrypted_url="$1"
+  bitrate="$2"
 
-    # Map bitrate to actual file suffix
-    case "$bitrate" in
-    12) file_suffix="12" ;;
-    48) file_suffix="48" ;;
-    96) file_suffix="96" ;;
-    160) file_suffix="160" ;;
-    320) file_suffix="320" ;;
-    *) file_suffix="320" ;;
-    esac
+  # Map bitrate to actual file suffix
+  case "$bitrate" in
+  12) file_suffix="12" ;;
+  48) file_suffix="48" ;;
+  96) file_suffix="96" ;;
+  160) file_suffix="160" ;;
+  320) file_suffix="320" ;;
+  *) file_suffix="320" ;;
+  esac
 
-    # URL encode the encrypted URL
-    encoded_url=$(printf '%s' "$encrypted_url" | sed 's/+/%2B/g;s/=/%3D/g;s/\//%2F/g')
+  # URL encode the encrypted URL
+  encoded_url=$(printf '%s' "$encrypted_url" | sed 's/+/%2B/g;s/=/%3D/g;s/\//%2F/g')
 
-    response=$(curl -s "${JIOSAAVN_API}?__call=song.generateAuthToken&url=$encoded_url&bitrate=$bitrate&api_version=4&_format=json&ctx=web6dot0&_marker=0")
+  response=$(curl -s "${JIOSAAVN_API}?__call=song.generateAuthToken&url=$encoded_url&bitrate=$bitrate&api_version=4&_format=json&ctx=web6dot0&_marker=0")
 
-    auth_url=$(printf '%s' "$response" | jq -r '.auth_url // empty')
+  auth_url=$(printf '%s' "$response" | jq -r '.auth_url // empty')
 
-    # Convert the URL format
-    if [ -n "$auth_url" ]; then
-        # Extract the path part and convert web.saavncdn.com to aac.saavncdn.com
-        # Remove query parameters and change quality suffix to mapped bitrate
-        # converted_url=$(printf '%s' "$auth_url" | sed 's|web\.saavncdn\.com|aac.saavncdn.com|' | sed 's|\?.*||' | sed "s|_[0-9]*\.mp4|_${file_suffix}.mp4|")
+  # Convert the URL format
+  if [ -n "$auth_url" ]; then
+    # Extract the path part and convert web.saavncdn.com to aac.saavncdn.com
+    # Remove query parameters and change quality suffix to mapped bitrate
+    # converted_url=$(printf '%s' "$auth_url" | sed 's|web\.saavncdn\.com|aac.saavncdn.com|' | sed 's|\?.*||' | sed "s|_[0-9]*\.mp4|_${file_suffix}.mp4|")
 
-        converted_url=$(printf '%s' "$auth_url" \
-        | sed -E 's|[^/]*\.saavncdn\.com|aac.saavncdn.com|' \
-        | sed 's|\?.*||' \
-        | sed "s|_[0-9]*\.mp4|_${file_suffix}.mp4|")
-        printf '%s' "$converted_url"
-    fi
+    converted_url=$(printf '%s' "$auth_url" |
+      sed -E 's|[^/]*\.saavncdn\.com|aac.saavncdn.com|' |
+      sed 's|\?.*||' |
+      sed "s|_[0-9]*\.mp4|_${file_suffix}.mp4|")
+    printf '%s' "$converted_url"
+  fi
 }
 
 # PLAYER FUNCTIONS
 where_mpv() {
-    command -v "flatpak" >/dev/null && flatpak info io.mpv.Mpv >/dev/null 2>&1 && printf "%s" "flatpak_mpv" && return 0
-    printf "%s" "mpv" && return 0
+  command -v "flatpak" >/dev/null && flatpak info io.mpv.Mpv >/dev/null 2>&1 && printf "%s" "flatpak_mpv" && return 0
+  printf "%s" "mpv" && return 0
 }
 
 format_duration() {
-    duration_sec="$1"
-    minutes=$((duration_sec / 60))
-    seconds=$((duration_sec % 60))
-    printf "%d:%02d" "$minutes" "$seconds"
+  duration_sec="$1"
+  minutes=$((duration_sec / 60))
+  seconds=$((duration_sec % 60))
+  printf "%d:%02d" "$minutes" "$seconds"
 }
 
 update_history() {
-    if grep -q "$song_id" "$histfile"; then
-        sed -E "s|^[^	]*	${song_id}	.*$|$(date +%s)	${song_id}	${artist_name} - ${song_title}	${album_title}|" "$histfile" >"${histfile}.new"
-    else
-        cp "$histfile" "${histfile}.new"
-        printf "%s\t%s\t%s\t%s\n" "$(date +%s)" "$song_id" "$artist_name - $song_title" "$album_title" >>"${histfile}.new"
-    fi
-    mv "${histfile}.new" "$histfile"
+  if grep -q "$song_id" "$histfile"; then
+    sed -E "s|^[^	]*	${song_id}	.*$|$(date +%s)	${song_id}	${artist_name} - ${song_title}	${album_title}|" "$histfile" >"${histfile}.new"
+  else
+    cp "$histfile" "${histfile}.new"
+    printf "%s\t%s\t%s\t%s\n" "$(date +%s)" "$song_id" "$artist_name - $song_title" "$album_title" >>"${histfile}.new"
+  fi
+  mv "${histfile}.new" "$histfile"
 }
 
 download_song() {
-    song_url="$1"
-    filename="$2"
+  song_url="$1"
+  filename="$2"
 
-    # Sanitize filename: remove problematic characters
-    safe_filename=$(sanitize_filename "$filename")
-    
-    # Determine the output file path and extension
-    if [ "$use_youtube" = 1 ]; then
-        output_file="$download_dir/$safe_filename.mp3"
-    else
-        case "$song_url" in
-        *.mp4*)
-            output_file="$download_dir/$safe_filename.mp4"
-            ;;
-        *)
-            output_file="$download_dir/$safe_filename.mp3"
-            ;;
-        esac
-    fi
-    
-    # Check if file exists and force_download is not set
-    if [ -f "$output_file" ] && [ "${force_download:-0}" != "1" ]; then
-        echo "File already exists: $output_file (use -df to overwrite)"
-        return 0
-    fi
-    
-    if [ "$use_youtube" = 1 ]; then
-        # YouTube downloads via yt-dlp
-        yt-dlp --quiet --no-warnings --extract-audio --audio-format mp3 --audio-quality "$quality" \
-            -o "$download_dir/$safe_filename.%(ext)s" "$song_url"
-    else
-        # JioSaavn downloads via aria2c
-        case "$song_url" in
-        *.mp4*)
-            aria2c --check-certificate=false --continue -x 16 -s 16 \
-                -d "$download_dir" -o "$safe_filename.mp4" "$song_url" --summary-interval=0 --download-result=hide --quiet=true
-            ;;
-        *)
-            aria2c --check-certificate=false --continue -x 16 -s 16 \
-                -d "$download_dir" -o "$safe_filename.mp3" "$song_url" --summary-interval=0 --download-result=hide --quiet=true
-            ;;
-        esac
-    fi
+  # Sanitize filename: remove problematic characters
+  safe_filename=$(sanitize_filename "$filename")
+
+  # Determine the output file path and extension
+  if [ "$use_youtube" = 1 ]; then
+    output_file="$download_dir/$safe_filename.mp3"
+  else
+    case "$song_url" in
+    *.mp4*)
+      output_file="$download_dir/$safe_filename.mp4"
+      ;;
+    *)
+      output_file="$download_dir/$safe_filename.mp3"
+      ;;
+    esac
+  fi
+
+  # Check if file exists and force_download is not set
+  if [ -f "$output_file" ] && [ "${force_download:-0}" != "1" ]; then
+    echo "File already exists: $output_file (use -df to overwrite)"
+    return 0
+  fi
+
+  if [ "$use_youtube" = 1 ]; then
+    # YouTube downloads via yt-dlp
+    yt-dlp --quiet --no-warnings --extract-audio --audio-format mp3 --audio-quality "$quality" \
+      -o "$download_dir/$safe_filename.%(ext)s" "$song_url"
+  else
+    # JioSaavn downloads via aria2c
+    case "$song_url" in
+    *.mp4*)
+      aria2c --check-certificate=false --continue -x 16 -s 16 \
+        -d "$download_dir" -o "$safe_filename.mp4" "$song_url" --summary-interval=0 --download-result=hide --quiet=true
+      ;;
+    *)
+      aria2c --check-certificate=false --continue -x 16 -s 16 \
+        -d "$download_dir" -o "$safe_filename.mp3" "$song_url" --summary-interval=0 --download-result=hide --quiet=true
+      ;;
+    esac
+  fi
 }
 
 # Direct Kitty protocol display
 display_kitty_direct() {
-    image_file="$1"
-    width="${2:-35}"
-    height="${3:-20}"
-    
-    if [ ! -f "$image_file" ]; then
-        printf "${RED}Image file not found for display${NC}\n"
-        return 1
-    fi
-    
-    # Move cursor to display position
-    printf "\033[6;1H"
-    
-    # Display using Kitty's inline image protocol
-    printf '\033]1337;File=inline=1;width=%dcells;height=%dcells:' "$width" "$height"
-    base64 "$image_file" | tr -d '\n'
-    printf '\a'
-    
+  image_file="$1"
+  width="${2:-35}"
+  height="${3:-20}"
+
+  if [ ! -f "$image_file" ]; then
+    printf "${RED}Image file not found for display${NC}\n"
+    return 1
+  fi
+
+  # Move cursor to display position
+  printf "\033[6;1H"
+
+  # Display using Kitty's inline image protocol
+  printf '\033]1337;File=inline=1;width=%dcells;height=%dcells:' "$width" "$height"
+  base64 "$image_file" | tr -d '\n'
+  printf '\a'
+
 }
 
 show_thumbnail_kitty() {
-    url="$1"
-    title="$2"
-    artist="$3"
-    
-    [ "$show_thumbnails" = "0" ] && return 0
-    [ -z "$url" ] || [ "$url" = "null" ] && { show_banner; return 1; }
-    
-    temp_dir="/tmp/music-cli-thumbs"
-    mkdir -p "$temp_dir"
-    thumb_file="$temp_dir/$(printf '%s' "$url" | md5sum | cut -d' ' -f1).jpg"
-    
-    # Download and validate
-    curl -s -L --max-time 15 --user-agent "$agent" "$url" -o "$thumb_file"
-    [ ! -s "$thumb_file" ] && { show_banner; return 1; }
-    
+  url="$1"
+  title="$2"
+  artist="$3"
+
+  [ "$show_thumbnails" = "0" ] && return 0
+  [ -z "$url" ] || [ "$url" = "null" ] && {
     show_banner
-    
-    x=2 # Small left margin
-    y=5 # Start under banner
-    img_w=35
-    img_h=20
-    
-    # Display using Kitty protocol
-    if command -v "kitten" >/dev/null 2>&1; then
-        kitten icat --align=left --place="${img_w}x${img_h}@${x}x${y}" "$thumb_file" </dev/tty 2>/dev/null || \
-            display_kitty_direct "$thumb_file" "$img_w" "$img_h"
-    else
-        display_kitty_direct "$thumb_file" "$img_w" "$img_h"
-    fi
-    
-    # Position cursor after image and show song info
-    info_y=$((y + img_h + 1))
-    printf "\033[%d;1H" "$info_y"
-    
-    printf "  ${GREEN}${ICON_MUSIC} Song Details:${NC}\n"
-    printf "     ${WHITE}♫ Title:  %s${NC}\n" "$title"
-    printf "     ${WHITE}${ICON_ARTIST} Artist: %s${NC}\n" "$artist"
-    printf "     ${BLUE}${ICON_ALBUM} Source: %s${NC}\n\n" "${album_title:-JioSaavn}"
-    
-    # Set playback status cursor position
-    printf "\033[$((info_y+6));1H"
-    
-    echo "$thumb_file" > "$temp_dir/current_image"
+    return 1
+  }
+
+  temp_dir="/tmp/music-cli-thumbs"
+  mkdir -p "$temp_dir"
+  thumb_file="$temp_dir/$(printf '%s' "$url" | md5sum | cut -d' ' -f1).jpg"
+
+  # Download and validate
+  curl -s -L --max-time 15 --user-agent "$agent" "$url" -o "$thumb_file"
+  [ ! -s "$thumb_file" ] && {
+    show_banner
+    return 1
+  }
+
+  show_banner
+
+  x=2 # Small left margin
+  y=5 # Start under banner
+  img_w=35
+  img_h=20
+
+  # Display using Kitty protocol
+  if command -v "kitten" >/dev/null 2>&1; then
+    kitten icat --align=left --place="${img_w}x${img_h}@${x}x${y}" "$thumb_file" </dev/tty 2>/dev/null ||
+      display_kitty_direct "$thumb_file" "$img_w" "$img_h"
+  else
+    display_kitty_direct "$thumb_file" "$img_w" "$img_h"
+  fi
+
+  # Position cursor after image and show song info
+  info_y=$((y + img_h + 1))
+  printf "\033[%d;1H" "$info_y"
+
+  printf "  ${GREEN}${ICON_MUSIC} Song Details:${NC}\n"
+  printf "     ${WHITE}♫ Title:  %s${NC}\n" "$title"
+  printf "     ${WHITE}${ICON_ARTIST} Artist: %s${NC}\n" "$artist"
+  printf "     ${BLUE}${ICON_ALBUM} Source: %s${NC}\n\n" "${album_title:-JioSaavn}"
+
+  # Set playback status cursor position
+  printf "\033[$((info_y + 6));1H"
+
+  echo "$thumb_file" >"$temp_dir/current_image"
 }
 
 hide_thumbnail() {
-    temp_dir="/tmp/jiosaavn-kitty-thumbnails"
-    
-    # Clear screen
-    show_banner
-    
-    # Clean up temp files
-    if [ -f "$temp_dir/current_image" ]; then
-        current_image=$(cat "$temp_dir/current_image")
-        rm -f "$current_image" 2>/dev/null
-        rm -f "$temp_dir/current_image"
-    fi
+  temp_dir="/tmp/jiosaavn-kitty-thumbnails"
+
+  # Clear screen
+  show_banner
+
+  # Clean up temp files
+  if [ -f "$temp_dir/current_image" ]; then
+    current_image=$(cat "$temp_dir/current_image")
+    rm -f "$current_image" 2>/dev/null
+    rm -f "$temp_dir/current_image"
+  fi
 }
 
 play_song() {
-    [ -z "$song_url" ] && die "Could not get song URL!"
+  [ -z "$song_url" ] && die "Could not get song URL!"
 
-    show_thumbnail_kitty "$image_url" "$song_title" "$artist_name"
+  show_thumbnail_kitty "$image_url" "$song_title" "$artist_name"
 
-    # Format song info for display
+  # Format song info for display
+  if [ "$use_youtube" = 1 ]; then
+    printf "${GREEN}%s Now Playing (YouTube):${NC} %s - %s\n" "$ICON_PLAY" "$artist_name" "$song_title"
+  else
+    duration_formatted=$(format_duration $duration)
+    printf "${GREEN}%s Now Playing (JioSaavn):${NC} %s - %s [%s]\n" "$ICON_PLAY" "$artist_name" "$song_title" "$duration_formatted"
+  fi
+
+  # If recording is enabled, download first then play the file
+  if [ "$record_while_playing" = 1 ]; then
+    filename="${artist_name} - ${song_title}"
+    filename=$(sanitize_filename "$filename")
+
+    printf "${BLUE}⬇️  Downloading song...${NC}\n"
+    download_song "$song_url" "$filename"
+
+    # Find the downloaded file
     if [ "$use_youtube" = 1 ]; then
-        printf "${GREEN}%s Now Playing (YouTube):${NC} %s - %s\n" "$ICON_PLAY" "$artist_name" "$song_title"
+      downloaded_file="$download_dir/$filename.mp3"
     else
-        duration_formatted=$(format_duration $duration)
-        printf "${GREEN}%s Now Playing (JioSaavn):${NC} %s - %s [%s]\n" "$ICON_PLAY" "$artist_name" "$song_title" "$duration_formatted"
+      case "$song_url" in
+      *.mp4*) downloaded_file="$download_dir/$filename.mp4" ;;
+      *) downloaded_file="$download_dir/$filename.mp3" ;;
+      esac
     fi
 
-    # If recording is enabled, download first then play the file
-    if [ "$record_while_playing" = 1 ]; then
-        filename="${artist_name} - ${song_title}"
-        filename=$(sanitize_filename "$filename")
-        
-        printf "${BLUE}⬇️  Downloading song...${NC}\n"
-        download_song "$song_url" "$filename"
-        
-        # Find the downloaded file
-        if [ "$use_youtube" = 1 ]; then
-            downloaded_file="$download_dir/$filename.mp3"
-        else
-            case "$song_url" in
-            *.mp4*) downloaded_file="$download_dir/$filename.mp4" ;;
-            *) downloaded_file="$download_dir/$filename.mp3" ;;
-            esac
-        fi
-        
-        if [ -f "$downloaded_file" ]; then
-            printf "${GREEN}Downloaded! Now playing from file...${NC}\n"
-            song_url="$downloaded_file"
-        else
-            printf "${YELLOW}⚠️  Download failed, streaming instead...${NC}\n"
-        fi
+    if [ -f "$downloaded_file" ]; then
+      printf "${GREEN}Downloaded! Now playing from file...${NC}\n"
+      song_url="$downloaded_file"
+    else
+      printf "${YELLOW}⚠️  Download failed, streaming instead...${NC}\n"
     fi
+  fi
 
-    case "$player_function" in
-    download)
-        filename="${artist_name} - ${song_title}"
-        filename=$(sanitize_filename "$filename")
-        download_song "$song_url" "$filename"
-        printf "${GREEN}Download successful or file already exists\n"
-        player_status=$?
-        ;;
-    mpv*)
-        if [ "$play_in_background" = 1 ]; then
-            nohup $player_function --no-video --force-media-title="$artist_name - $song_title" --no-sub $loop_flag "$song_url" >/dev/null 2>&1 &
-            printf "${BLUE}run 'pkill mpv' to stop...${NC}\n"
-            player_status=$?
-        else
-            $player_function --no-video --force-media-title="$artist_name - $song_title" --no-sub $loop_flag "$song_url"
-            player_status=$?
-        fi
-        ;;
-    flatpak_mpv)
-        if [ "$play_in_background" = 1 ]; then
-            nohup flatpak run io.mpv.Mpv --no-video --force-media-title="$artist_name - $song_title" --no-sub $loop_flag "$song_url" >/dev/null 2>&1 &
-            printf "${BLUE}run 'pkill mpv' to stop...${NC}\n"
-            player_status=$?
-        else
-            flatpak run io.mpv.Mpv --no-video --force-media-title="$artist_name - $song_title" --no-sub $loop_flag "$song_url"
-            player_status=$?
-        fi
-        ;;
-    *)
-        if [ "$play_in_background" = 1 ]; then
-            nohup $player_function "$song_url" >/dev/null 2>&1 &
-            player_status=$?
-        else
-            $player_function "$song_url"
-            player_status=$?
-        fi
-        ;;
-    esac
+  case "$player_function" in
+  download)
+    filename="${artist_name} - ${song_title}"
+    filename=$(sanitize_filename "$filename")
+    download_song "$song_url" "$filename"
+    printf "${GREEN}Download successful or file already exists\n"
+    player_status=$?
+    ;;
+  mpv*)
+    if [ "$play_in_background" = 1 ]; then
+      nohup $player_function --no-video --force-media-title="$artist_name - $song_title" --no-sub $loop_flag "$song_url" >/dev/null 2>&1 &
+      printf "${BLUE}run 'pkill mpv' to stop...${NC}\n"
+      player_status=$?
+    else
+      $player_function --no-video --force-media-title="$artist_name - $song_title" --no-sub $loop_flag "$song_url"
+      player_status=$?
+    fi
+    ;;
+  flatpak_mpv)
+    if [ "$play_in_background" = 1 ]; then
+      nohup flatpak run io.mpv.Mpv --no-video --force-media-title="$artist_name - $song_title" --no-sub $loop_flag "$song_url" >/dev/null 2>&1 &
+      printf "${BLUE}run 'pkill mpv' to stop...${NC}\n"
+      player_status=$?
+    else
+      flatpak run io.mpv.Mpv --no-video --force-media-title="$artist_name - $song_title" --no-sub $loop_flag "$song_url"
+      player_status=$?
+    fi
+    ;;
+  *)
+    if [ "$play_in_background" = 1 ]; then
+      nohup $player_function "$song_url" >/dev/null 2>&1 &
+      player_status=$?
+    else
+      $player_function "$song_url"
+      player_status=$?
+    fi
+    ;;
+  esac
 
-    update_history
-    # Only clear if NOT in background, so image stays visible while playing
-    [ "$play_in_background" = 0 ] && hide_thumbnail
-    unset song_url
-    return $player_status
+  update_history
+  # Only clear if NOT in background, so image stays visible while playing
+  [ "$play_in_background" = 0 ] && hide_thumbnail
+  unset song_url
+  return $player_status
 }
 # Runtime Cleanup & Directories
 cleanup() {
-    trap - EXIT INT TERM
-    hide_thumbnail
-    exit 0
+  trap - EXIT INT TERM
+  hide_thumbnail
+  exit 0
 }
 trap cleanup EXIT INT TERM
 
@@ -703,130 +714,130 @@ histfile="$hist_dir/music-history"
 
 # Parse arguments
 while [ $# -gt 0 ]; do
-    case "$1" in
-    -q | --quality)
-        [ $# -lt 2 ] && die "missing argument! 
+  case "$1" in
+  -q | --quality)
+    [ $# -lt 2 ] && die "missing argument! 
             try below
             320 - Higest quality 
             160 - Medium quality
             96 - Decent quality
             48 - Potato quality
             12 - Are you sure about that?"
-        quality="$2"
-        shift
-        ;;
-    -y | --youtube) use_youtube=1 ;;
-    -f | --fallback) use_youtube_fallback=1 ;;
-    --no-fallback) use_youtube_fallback=0 ;;
-    -b | --background) play_in_background=1 ;;
-    -l | --loop)
-        loop_enabled=1
-        loop_flag="--loop"
-        ;;
-    -d | --download) player_function="download" ;;
-    -df | --download-force) 
-        player_function="download" 
-        force_download=1
-        ;;
-    -D | --delete)
-        : >"$histfile"
-        printf "History cleared!\n"
-        exit 0
-        ;;
-    -c | --continue)
-        # Load from history
-        if [ -s "$histfile" ]; then
-            last_song=$(tail -n1 "$histfile")
-
-            # history format: index <tab> song_id <tab> "Artist - Title" <tab> Album
-            song_id=$(printf '%s' "$last_song" | cut -f2)
-            song_info=$(printf '%s' "$last_song" | cut -f3)
-            album_title=$(printf '%s' "$last_song" | cut -f4)
-
-            # safer split: artist and title
-            artist_name=${song_info%% - *}
-            song_title=${song_info#* - }
-
-            case "$song_id" in yt_*)
-                use_youtube=1
-                video_id=${song_id#yt_}
-                song_url="https://www.youtube.com/watch?v=$video_id"
-                image_url="https://img.youtube.com/vi/$video_id/hqdefault.jpg"
-
-                printf "${GREEN}%s Resuming:${NC} %s\n" "$ICON_RESUME" "$song_info"
-                play_song
-                exit 0
-            ;;
-            *)
-                printf "${BLUE}%s Getting song details...${NC}\n" "$ICON_SEARCH"
-                song_details=$(get_song_details "$song_id") || die "Failed to get song details!"
-                encrypted_url=$(printf '%s' "$song_details" | jq -r '.more_info.encrypted_media_url // empty')
-                duration=$(printf '%s' "$song_details" | jq -r '.more_info.duration // "0"')
-                image_url=$(printf '%s' "$song_details" | jq -r '.image // empty | sub("150x150"; "500x500") | sub("50x50"; "500x500")')
-
-                [ -z "$encrypted_url" ] && die "Could not get song details!"
-
-                printf "${BLUE}%s Getting song URL...${NC}\n" "$ICON_PLAY"
-                song_url=$(get_song_url "$encrypted_url" "$quality") || die "Failed to get song URL!"
-
-                printf "${GREEN}%s Resuming:${NC} %s\n" "$ICON_RESUME" "$song_info"
-                play_song
-                exit 0
-            ;;
-            esac
-        else
-            die "No history found!"
-        fi
-        ;;
-    -R | --record)
-        record_while_playing=1
-        ;;
-    -r | --radio)
-        radio_mode=1
-        if [ $# -gt 1 ] && [ "${2#-}" = "$2" ]; then
-            shift
-            radio_station="$1"
-        fi
-        ;;
-    -a | --album) album_search=1 ;;
-    -nt | --no-thumb) show_thumbnails=0 ;;
-    --rofi) use_external_menu=1 ;;
-    --rofi-args)
-        [ $# -lt 2 ] && die "missing argument for --rofi-args!"
-        use_external_menu=1
-        external_menu_args="$2"
-        shift
-        ;;
-    -P | --yt-playlist)
-        shift
-        playlist_url="$1"
-        use_youtube=1
-        [ -z "$playlist_url" ] && die "Missing YouTube playlist URL!"
-
-        printf "${BLUE}Loading YouTube playlist...${NC}\n"
-        play_youtube_playlist "$playlist_url" "$quality"
-        exit 0
-        ;;
-    -v | --version) version_info ;;
-    -h | --help) help_info ;;
-    -U | --update) update=1;;
-    -*) die "Unknown option: $1" ;;
-    *) query="$(printf "%s" "$query $1" | sed "s|^ ||")" ;;
-    esac
+    quality="$2"
     shift
+    ;;
+  -y | --youtube) use_youtube=1 ;;
+  -f | --fallback) use_youtube_fallback=1 ;;
+  --no-fallback) use_youtube_fallback=0 ;;
+  -b | --background) play_in_background=1 ;;
+  -l | --loop)
+    loop_enabled=1
+    loop_flag="--loop"
+    ;;
+  -d | --download) player_function="download" ;;
+  -df | --download-force)
+    player_function="download"
+    force_download=1
+    ;;
+  -D | --delete)
+    : >"$histfile"
+    printf "History cleared!\n"
+    exit 0
+    ;;
+  -c | --continue)
+    # Load from history
+    if [ -s "$histfile" ]; then
+      last_song=$(tail -n1 "$histfile")
+
+      # history format: index <tab> song_id <tab> "Artist - Title" <tab> Album
+      song_id=$(printf '%s' "$last_song" | cut -f2)
+      song_info=$(printf '%s' "$last_song" | cut -f3)
+      album_title=$(printf '%s' "$last_song" | cut -f4)
+
+      # safer split: artist and title
+      artist_name=${song_info%% - *}
+      song_title=${song_info#* - }
+
+      case "$song_id" in yt_*)
+        use_youtube=1
+        video_id=${song_id#yt_}
+        song_url="https://www.youtube.com/watch?v=$video_id"
+        image_url="https://img.youtube.com/vi/$video_id/hqdefault.jpg"
+
+        printf "${GREEN}%s Resuming:${NC} %s\n" "$ICON_RESUME" "$song_info"
+        play_song
+        exit 0
+        ;;
+      *)
+        printf "${BLUE}%s Getting song details...${NC}\n" "$ICON_SEARCH"
+        song_details=$(get_song_details "$song_id") || die "Failed to get song details!"
+        encrypted_url=$(printf '%s' "$song_details" | jq -r '.more_info.encrypted_media_url // empty')
+        duration=$(printf '%s' "$song_details" | jq -r '.more_info.duration // "0"')
+        image_url=$(printf '%s' "$song_details" | jq -r '.image // empty | sub("150x150"; "500x500") | sub("50x50"; "500x500")')
+
+        [ -z "$encrypted_url" ] && die "Could not get song details!"
+
+        printf "${BLUE}%s Getting song URL...${NC}\n" "$ICON_PLAY"
+        song_url=$(get_song_url "$encrypted_url" "$quality") || die "Failed to get song URL!"
+
+        printf "${GREEN}%s Resuming:${NC} %s\n" "$ICON_RESUME" "$song_info"
+        play_song
+        exit 0
+        ;;
+      esac
+    else
+      die "No history found!"
+    fi
+    ;;
+  -R | --record)
+    record_while_playing=1
+    ;;
+  -r | --radio)
+    radio_mode=1
+    if [ $# -gt 1 ] && [ "${2#-}" = "$2" ]; then
+      shift
+      radio_station="$1"
+    fi
+    ;;
+  -a | --album) album_search=1 ;;
+  -nt | --no-thumb) show_thumbnails=0 ;;
+  --rofi) use_external_menu=1 ;;
+  --rofi-args)
+    [ $# -lt 2 ] && die "missing argument for --rofi-args!"
+    use_external_menu=1
+    external_menu_args="$2"
+    shift
+    ;;
+  -P | --yt-playlist)
+    shift
+    playlist_url="$1"
+    use_youtube=1
+    [ -z "$playlist_url" ] && die "Missing YouTube playlist URL!"
+
+    printf "${BLUE}Loading YouTube playlist...${NC}\n"
+    play_youtube_playlist "$playlist_url" "$quality"
+    exit 0
+    ;;
+  -v | --version) version_info ;;
+  -h | --help) help_info ;;
+  -U | --update) update=1 ;;
+  -*) die "Unknown option: $1" ;;
+  *) query="$(printf "%s" "$query $1" | sed "s|^ ||")" ;;
+  esac
+  shift
 done
 
 # Handle radio mode (after all args are parsed so -nt etc are respected)
 if [ "$radio_mode" = 1 ]; then
-    printf "${BLUE}Checking dependencies...${NC}\n"
-    dep_ch "curl" "jq"
-    case "$player_function" in
-        *android*) ;;
-        flatpak_mpv) ;;
-        *) dep_ch "$player_function" ;;
-    esac
-    play_radio "$radio_station"
-    exit 0
+  printf "${BLUE}Checking dependencies...${NC}\n"
+  dep_ch "curl" "jq"
+  case "$player_function" in
+  *android*) ;;
+  flatpak_mpv) ;;
+  *) dep_ch "$player_function" ;;
+  esac
+  play_radio "$radio_station"
+  exit 0
 fi
 
 # Check dependencies
@@ -837,12 +848,12 @@ dep_ch "curl" "jq" || true
 [ "$use_youtube_fallback" = 1 ] || [ "$use_youtube" = 1 ] && dep_ch "yt-dlp" || true
 case "$player_function" in
 download)
-    if [ "$use_youtube" = 1 ]; then
-        dep_ch "yt-dlp"
-    else
-        dep_ch "aria2c"
-    fi
-    ;;
+  if [ "$use_youtube" = 1 ]; then
+    dep_ch "yt-dlp"
+  else
+    dep_ch "aria2c"
+  fi
+  ;;
 *android*) ;;
 flatpak_mpv) ;;
 *) dep_ch "$player_function" ;;
@@ -853,84 +864,107 @@ update_script
 
 # Get search query if not provided
 if [ "$use_external_menu" = "0" ]; then
-    while [ -z "$query" ]; do
-        printf "${CLEAR_LINE}${CYAN}Search music: ${NC}" && read -r query
-    done
+  while [ -z "$query" ]; do
+    printf "${CLEAR_LINE}${CYAN}Search music: ${NC}" && read -r query
+  done
 else
-    [ -z "$query" ] && query=$(printf "" | external_menu "" "Search music: ")
-    [ -z "$query" ] && exit 1
+  [ -z "$query" ] && query=$(printf "" | external_menu "" "Search music: ")
+  [ -z "$query" ] && exit 1
 fi
 
 # Search and select
 
 if [ "$album_search" = 1 ]; then
-    printf "${CLEAR_LINE}${BLUE}Searching albums...${NC}\n"
-    album_results=$(search_albums "$query")
-    [ -z "$album_results" ] && die "No album results found!"
-    
-    selected_album=$(printf '%s' "$album_results" | nth "Select album: ")
-    [ -z "$selected_album" ] && exit 1
-    
-    # Extract album info
-    album_title=$(printf '%s' "$selected_album" | cut -f2)
-    album_artist=$(printf '%s' "$selected_album" | cut -f3)
-    perma_url=$(printf '%s' "$selected_album" | cut -f1)
-    album_token=$(printf '%s' "$perma_url" | sed 's/.*\/\([^\/]*\)_$/\1/')
-    total_songs=$(printf '%s' "$selected_album" | cut -f5)
-    image_url=$(printf '%s' "$selected_album" | cut -f6)
-    
-    printf "${GREEN}════════════════════════════════════════${NC}\n"
-    printf "${GREEN}♪ Album: ${WHITE}%s${NC}\n" "$album_title"
-    printf "${GREEN}♪ Artist: ${WHITE}%s${NC}\n" "$album_artist" 
-    printf "${GREEN}♪ Tracks: ${WHITE}%d${NC}\n" "$total_songs"
-    printf "${GREEN}════════════════════════════════════════${NC}\n\n"
+  printf "${CLEAR_LINE}${BLUE}Searching albums...${NC}\n"
+  album_results=$(search_albums "$query")
+  [ -z "$album_results" ] && die "No album results found!"
 
-    song_results=$(get_album_songs "$album_token")
-    [ -z "$song_results" ] && die "No songs found in album!"
-    
-    printf "${BLUE}Album Loaded. Playing continuously... (Ctrl+C to stop)${NC}\n"
-    
-    # Play each song in the album
-    current_track=1
-    printf '%s\n' "$song_results" | while IFS=$'\t' read -r t_num s_id s_title a_name alb_name d_sec i_url; do
-        song_id="$s_id"
-        song_title="$s_title"
-        artist_name="$a_name"
-        album_name="$alb_name"
-        duration="$d_sec"
-        image_url="$i_url"
+  selected_album=$(printf '%s' "$album_results" | nth "Select album: ")
+  [ -z "$selected_album" ] && exit 1
 
-        printf "${CYAN}[%d/%d] %s Now Playing: %s - %s${NC}\n" "$current_track" "$total_songs" "$ICON_PLAY" "$artist_name" "$song_title"
-        
-        # Get song details and URL
-        song_details=$(get_song_details "$song_id")
-        encrypted_url=$(printf '%s' "$song_details" | jq -r '.more_info.encrypted_media_url // empty')
-        
-        if [ -z "$image_url" ] || [ "$image_url" = "null" ]; then
-            image_url=$(printf '%s' "$song_details" | jq -r '.image // empty | sub("150x150"; "500x500") | sub("50x50"; "500x500")')
-        fi
+  # Extract album info
+  album_title=$(printf '%s' "$selected_album" | cut -f2)
+  album_artist=$(printf '%s' "$selected_album" | cut -f3)
+  perma_url=$(printf '%s' "$selected_album" | cut -f1)
+  album_token=$(printf '%s' "$perma_url" | sed 's/.*\/\([^\/]*\)_$/\1/')
+  total_songs=$(printf '%s' "$selected_album" | cut -f5)
+  image_url=$(printf '%s' "$selected_album" | cut -f6)
 
-        if [ -n "$encrypted_url" ]; then
-            song_url=$(get_song_url "$encrypted_url" "$quality")
-            if [ -n "$song_url" ]; then
-                play_song
-                update_history
-            else
-                printf "${YELLOW}⚠️ Skipping %s (no URL available)${NC}\n" "$song_title"
-            fi
-        fi
-        
-        current_track=$((current_track + 1))
-        unset song_url
-    done
-    
-    printf "\n${GREEN}Album playback complete!${NC}\n"
-    exit 0
+  printf "${GREEN}════════════════════════════════════════${NC}\n"
+  printf "${GREEN}♪ Album: ${WHITE}%s${NC}\n" "$album_title"
+  printf "${GREEN}♪ Artist: ${WHITE}%s${NC}\n" "$album_artist"
+  printf "${GREEN}♪ Tracks: ${WHITE}%d${NC}\n" "$total_songs"
+  printf "${GREEN}════════════════════════════════════════${NC}\n\n"
+
+  song_results=$(get_album_songs "$album_token")
+  [ -z "$song_results" ] && die "No songs found in album!"
+
+  printf "${BLUE}Album Loaded. Playing continuously... (Ctrl+C to stop)${NC}\n"
+
+  # Play each song in the album
+  current_track=1
+  printf '%s\n' "$song_results" | while IFS=$'\t' read -r t_num s_id s_title a_name alb_name d_sec i_url; do
+    song_id="$s_id"
+    song_title="$s_title"
+    artist_name="$a_name"
+    album_name="$alb_name"
+    duration="$d_sec"
+    image_url="$i_url"
+
+    printf "${CYAN}[%d/%d] %s Now Playing: %s - %s${NC}\n" "$current_track" "$total_songs" "$ICON_PLAY" "$artist_name" "$song_title"
+
+    # Get song details and URL
+    song_details=$(get_song_details "$song_id")
+    encrypted_url=$(printf '%s' "$song_details" | jq -r '.more_info.encrypted_media_url // empty')
+
+    if [ -z "$image_url" ] || [ "$image_url" = "null" ]; then
+      image_url=$(printf '%s' "$song_details" | jq -r '.image // empty | sub("150x150"; "500x500") | sub("50x50"; "500x500")')
+    fi
+
+    if [ -n "$encrypted_url" ]; then
+      song_url=$(get_song_url "$encrypted_url" "$quality")
+      if [ -n "$song_url" ]; then
+        play_song
+        update_history
+      else
+        printf "${YELLOW}⚠️ Skipping %s (no URL available)${NC}\n" "$song_title"
+      fi
+    fi
+
+    current_track=$((current_track + 1))
+    unset song_url
+  done
+
+  printf "\n${GREEN}Album playback complete!${NC}\n"
+  exit 0
 
 elif [ "$use_youtube" = 1 ]; then
-    printf "${CLEAR_LINE}${BLUE}Searching YouTube...${NC}\n"
+  printf "${CLEAR_LINE}${BLUE}Searching YouTube...${NC}\n"
+  results=$(search_youtube "$query")
+  [ -z "$results" ] && die "No YouTube results found!"
+
+  selected=$(printf '%s' "$results" | nth "Select song: ")
+  [ -z "$selected" ] && exit 1
+
+  # Parse YouTube result
+  video_id=$(printf '%s' "$selected" | cut -f1)
+  song_title=$(printf '%s' "$selected" | cut -f2)
+  artist_name=$(printf '%s' "$selected" | cut -f3)
+  duration=$(printf '%s' "$selected" | cut -f4)
+  image_url=$(printf '%s' "$selected" | cut -f5)
+  album_title="YouTube"
+  song_id="yt_$video_id"
+  song_url="https://www.youtube.com/watch?v=$video_id"
+
+else
+  printf "${CLEAR_LINE}${BLUE}Searching JioSaavn...${NC}\n"
+  results=$(search_music "$query")
+
+  if [ -z "$results" ] && [ "$use_youtube_fallback" = 1 ]; then
+    printf "${CLEAR_LINE}${YELLOW}JioSaavn search failed, trying YouTube...${NC}\n"
     results=$(search_youtube "$query")
-    [ -z "$results" ] && die "No YouTube results found!"
+    [ -z "$results" ] && die "No results found on JioSaavn or YouTube!"
+    use_youtube=1
 
     selected=$(printf '%s' "$results" | nth "Select song: ")
     [ -z "$selected" ] && exit 1
@@ -945,72 +979,49 @@ elif [ "$use_youtube" = 1 ]; then
     song_id="yt_$video_id"
     song_url="https://www.youtube.com/watch?v=$video_id"
 
-else
-    printf "${CLEAR_LINE}${BLUE}Searching JioSaavn...${NC}\n"
-    results=$(search_music "$query")
+  elif [ -z "$results" ]; then
+    die "No results found!"
+  else
+    selected=$(printf '%s' "$results" | nth "Select song: ")
+    [ -z "$selected" ] && exit 1
 
-    if [ -z "$results" ] && [ "$use_youtube_fallback" = 1 ]; then
-        printf "${CLEAR_LINE}${YELLOW}JioSaavn search failed, trying YouTube...${NC}\n"
-        results=$(search_youtube "$query")
-        [ -z "$results" ] && die "No results found on JioSaavn or YouTube!"
-        use_youtube=1
+    # Parse JioSaavn result
+    song_id=$(printf '%s' "$selected" | cut -f1)
+    song_title=$(printf '%s' "$selected" | cut -f2)
+    artist_name=$(printf '%s' "$selected" | cut -f3)
+    album_title=$(printf '%s' "$selected" | cut -f4)
+    duration=$(printf '%s' "$selected" | cut -f5)
+    image_url=$(printf '%s' "$selected" | cut -f6)
 
-        selected=$(printf '%s' "$results" | nth "Select song: ")
-        [ -z "$selected" ] && exit 1
+    # Get song details and URL
+    printf "${CLEAR_LINE}${BLUE}Getting song details...${NC}\n"
+    song_details=$(get_song_details "$song_id")
+    encrypted_url=$(printf '%s' "$song_details" | jq -r '.more_info.encrypted_media_url // empty')
 
-        # Parse YouTube result
-        video_id=$(printf '%s' "$selected" | cut -f1)
-        song_title=$(printf '%s' "$selected" | cut -f2)
-        artist_name=$(printf '%s' "$selected" | cut -f3)
-        duration=$(printf '%s' "$selected" | cut -f4)
-        image_url=$(printf '%s' "$selected" | cut -f5)
-        album_title="YouTube"
-        song_id="yt_$video_id"
-        song_url="https://www.youtube.com/watch?v=$video_id"
+    if [ -z "$encrypted_url" ] && [ "$use_youtube_fallback" = 1 ]; then
+      printf "${CLEAR_LINE}${YELLOW}JioSaavn failed, trying YouTube...${NC}\n"
+      results=$(search_youtube "$query")
+      [ -z "$results" ] && die "No results found on JioSaavn or YouTube!"
 
-    elif [ -z "$results" ]; then
-        die "No results found!"
+      selected=$(printf '%s' "$results" | nth "Select song: ")
+      [ -z "$selected" ] && exit 1
+
+      use_youtube=1
+      video_id=$(printf '%s' "$selected" | cut -f1)
+      song_title=$(printf '%s' "$selected" | cut -f2)
+      artist_name=$(printf '%s' "$selected" | cut -f3)
+      duration=$(printf '%s' "$selected" | cut -f4)
+      image_url=$(printf '%s' "$selected" | cut -f5)
+      album_title="YouTube"
+      song_id="yt_$video_id"
+      song_url="https://www.youtube.com/watch?v=$video_id"
     else
-        selected=$(printf '%s' "$results" | nth "Select song: ")
-        [ -z "$selected" ] && exit 1
+      [ -z "$encrypted_url" ] && die "Could not get song details!"
 
-        # Parse JioSaavn result
-        song_id=$(printf '%s' "$selected" | cut -f1)
-        song_title=$(printf '%s' "$selected" | cut -f2)
-        artist_name=$(printf '%s' "$selected" | cut -f3)
-        album_title=$(printf '%s' "$selected" | cut -f4)
-        duration=$(printf '%s' "$selected" | cut -f5)
-        image_url=$(printf '%s' "$selected" | cut -f6)
-
-        # Get song details and URL
-        printf "${CLEAR_LINE}${BLUE}Getting song details...${NC}\n"
-        song_details=$(get_song_details "$song_id")
-        encrypted_url=$(printf '%s' "$song_details" | jq -r '.more_info.encrypted_media_url // empty')
-
-        if [ -z "$encrypted_url" ] && [ "$use_youtube_fallback" = 1 ]; then
-            printf "${CLEAR_LINE}${YELLOW}JioSaavn failed, trying YouTube...${NC}\n"
-            results=$(search_youtube "$query")
-            [ -z "$results" ] && die "No results found on JioSaavn or YouTube!"
-
-            selected=$(printf '%s' "$results" | nth "Select song: ")
-            [ -z "$selected" ] && exit 1
-
-            use_youtube=1
-            video_id=$(printf '%s' "$selected" | cut -f1)
-            song_title=$(printf '%s' "$selected" | cut -f2)
-            artist_name=$(printf '%s' "$selected" | cut -f3)
-            duration=$(printf '%s' "$selected" | cut -f4)
-            image_url=$(printf '%s' "$selected" | cut -f5)
-            album_title="YouTube"
-            song_id="yt_$video_id"
-            song_url="https://www.youtube.com/watch?v=$video_id"
-        else
-            [ -z "$encrypted_url" ] && die "Could not get song details!"
-
-            printf "${CLEAR_LINE}${BLUE}Getting song URL...${NC}\n"
-            song_url=$(get_song_url "$encrypted_url" "$quality")
-        fi
+      printf "${CLEAR_LINE}${BLUE}Getting song URL...${NC}\n"
+      song_url=$(get_song_url "$encrypted_url" "$quality")
     fi
+  fi
 fi
 
 # Play the song
@@ -1018,105 +1029,111 @@ play_song
 
 # Interactive menu for foreground playbook
 if [ "$play_in_background" = 0 ] && [ "$player_function" != "download" ]; then
-    while true; do
-        # Determine the other source name for the menu based on current source
-        if [ "$use_youtube" = 1 ]; then
-            other_source="play on jiosaavn"
-        else
-            other_source="play on youtube"
-        fi
-        
-        cmd=$(printf "replay\ndownload\n%s\nquit" "$other_source" | nth "Song finished. What next? ")
-        case "$cmd" in
-        replay)
-            if [ "$use_youtube" = 1 ]; then
-                song_url="https://www.youtube.com/watch?v=$video_id"
-            else
-                song_url=$(get_song_url "$encrypted_url" "$quality")
-            fi
-            play_song
-            ;;
-        download)
-            if [ "$use_youtube" = 1 ]; then
-                song_url="https://www.youtube.com/watch?v=$video_id"
-            else
-                song_url=$(get_song_url "$encrypted_url" "$quality")
-            fi
-            old_player_function="$player_function"
-            player_function="download"
-            play_song
-            player_function="$old_player_function"
-            ;;
-        "play on jiosaavn"|"play on youtube")
-            # Search on the opposite source with current song title
-            search_query="$song_title"
-            
-            if [ "$use_youtube" = 1 ]; then
-                # Currently on YouTube, search JioSaavn
-                printf "${CLEAR_LINE}${BLUE}%s Searching JioSaavn for: %s...${NC}\n" "$ICON_SEARCH" "$search_query"
-                alt_results=$(search_music "$search_query")
-                
-                if [ -z "$alt_results" ]; then
-                    printf "${RED}⚠️ No results found on JioSaavn!${NC}\n"
-                    continue
-                fi
-                
-                alt_selected=$(printf '%s' "$alt_results" | nth "Select JioSaavn song: ")
-                [ -z "$alt_selected" ] && continue
-                
-                # Parse JioSaavn result
-                song_id=$(printf '%s' "$alt_selected" | cut -f1)
-                song_title=$(printf '%s' "$alt_selected" | cut -f2)
-                artist_name=$(printf '%s' "$alt_selected" | cut -f3)
-                album_title=$(printf '%s' "$alt_selected" | cut -f4)
-                duration=$(printf '%s' "$alt_selected" | cut -f5)
-                image_url=$(printf '%s' "$alt_selected" | cut -f6)
-                use_youtube=0
-                
-                # Get song details and URL
-                printf "${BLUE}%s Getting song details...${NC}\n" "$ICON_SEARCH"
-                song_details=$(get_song_details "$song_id")
-                encrypted_url=$(printf '%s' "$song_details" | jq -r '.more_info.encrypted_media_url // empty')
-                [ -z "$encrypted_url" ] && { printf "${RED}⚠️ Failed to get song details!${NC}\n"; continue; }
-                
-                if [ -z "$image_url" ] || [ "$image_url" = "null" ]; then
-                    image_url=$(printf '%s' "$song_details" | jq -r '.image // empty | sub("150x150"; "500x500") | sub("50x50"; "500x500")')
-                fi
+  while true; do
+    # Determine the other source name for the menu based on current source
+    if [ "$use_youtube" = 1 ]; then
+      other_source="play on jiosaavn"
+    else
+      other_source="play on youtube"
+    fi
 
-                printf "${BLUE}%s Getting song URL...${NC}\n" "$ICON_PLAY"
-                song_url=$(get_song_url "$encrypted_url" "$quality")
-                [ -z "$song_url" ] && { printf "${RED}⚠️ Failed to get song URL!${NC}\n"; continue; }
-                
-            else
-                # Currently on JioSaavn, search YouTube
-                printf "${CLEAR_LINE}${BLUE}%s Searching YouTube for: %s...${NC}\n" "$ICON_SEARCH" "$search_query"
-                alt_results=$(search_youtube "$search_query")
-                
-                if [ -z "$alt_results" ]; then
-                    printf "${RED}⚠️ No results found on YouTube!${NC}\n"
-                    continue
-                fi
-                
-                alt_selected=$(printf '%s' "$alt_results" | nth "Select YouTube song: ")
-                [ -z "$alt_selected" ] && continue
-                
-                # Parse YouTube result
-                video_id=$(printf '%s' "$alt_selected" | cut -f1)
-                song_title=$(printf '%s' "$alt_selected" | cut -f2)
-                artist_name=$(printf '%s' "$alt_selected" | cut -f3)
-                duration=$(printf '%s' "$alt_selected" | cut -f4)
-                image_url=$(printf '%s' "$alt_selected" | cut -f5)
-                album_title="YouTube"
-                song_id="yt_$video_id"
-                use_youtube=1
-                song_url="https://www.youtube.com/watch?v=$video_id"
-            fi
-            
-            play_song
-            ;;
-        *) exit 0 ;;
-        esac
-    done
+    cmd=$(printf "replay\ndownload\n%s\nquit" "$other_source" | nth "Song finished. What next? ")
+    case "$cmd" in
+    replay)
+      if [ "$use_youtube" = 1 ]; then
+        song_url="https://www.youtube.com/watch?v=$video_id"
+      else
+        song_url=$(get_song_url "$encrypted_url" "$quality")
+      fi
+      play_song
+      ;;
+    download)
+      if [ "$use_youtube" = 1 ]; then
+        song_url="https://www.youtube.com/watch?v=$video_id"
+      else
+        song_url=$(get_song_url "$encrypted_url" "$quality")
+      fi
+      old_player_function="$player_function"
+      player_function="download"
+      play_song
+      player_function="$old_player_function"
+      ;;
+    "play on jiosaavn" | "play on youtube")
+      # Search on the opposite source with current song title
+      search_query="$song_title"
+
+      if [ "$use_youtube" = 1 ]; then
+        # Currently on YouTube, search JioSaavn
+        printf "${CLEAR_LINE}${BLUE}%s Searching JioSaavn for: %s...${NC}\n" "$ICON_SEARCH" "$search_query"
+        alt_results=$(search_music "$search_query")
+
+        if [ -z "$alt_results" ]; then
+          printf "${RED}⚠️ No results found on JioSaavn!${NC}\n"
+          continue
+        fi
+
+        alt_selected=$(printf '%s' "$alt_results" | nth "Select JioSaavn song: ")
+        [ -z "$alt_selected" ] && continue
+
+        # Parse JioSaavn result
+        song_id=$(printf '%s' "$alt_selected" | cut -f1)
+        song_title=$(printf '%s' "$alt_selected" | cut -f2)
+        artist_name=$(printf '%s' "$alt_selected" | cut -f3)
+        album_title=$(printf '%s' "$alt_selected" | cut -f4)
+        duration=$(printf '%s' "$alt_selected" | cut -f5)
+        image_url=$(printf '%s' "$alt_selected" | cut -f6)
+        use_youtube=0
+
+        # Get song details and URL
+        printf "${BLUE}%s Getting song details...${NC}\n" "$ICON_SEARCH"
+        song_details=$(get_song_details "$song_id")
+        encrypted_url=$(printf '%s' "$song_details" | jq -r '.more_info.encrypted_media_url // empty')
+        [ -z "$encrypted_url" ] && {
+          printf "${RED}⚠️ Failed to get song details!${NC}\n"
+          continue
+        }
+
+        if [ -z "$image_url" ] || [ "$image_url" = "null" ]; then
+          image_url=$(printf '%s' "$song_details" | jq -r '.image // empty | sub("150x150"; "500x500") | sub("50x50"; "500x500")')
+        fi
+
+        printf "${BLUE}%s Getting song URL...${NC}\n" "$ICON_PLAY"
+        song_url=$(get_song_url "$encrypted_url" "$quality")
+        [ -z "$song_url" ] && {
+          printf "${RED}⚠️ Failed to get song URL!${NC}\n"
+          continue
+        }
+
+      else
+        # Currently on JioSaavn, search YouTube
+        printf "${CLEAR_LINE}${BLUE}%s Searching YouTube for: %s...${NC}\n" "$ICON_SEARCH" "$search_query"
+        alt_results=$(search_youtube "$search_query")
+
+        if [ -z "$alt_results" ]; then
+          printf "${RED}⚠️ No results found on YouTube!${NC}\n"
+          continue
+        fi
+
+        alt_selected=$(printf '%s' "$alt_results" | nth "Select YouTube song: ")
+        [ -z "$alt_selected" ] && continue
+
+        # Parse YouTube result
+        video_id=$(printf '%s' "$alt_selected" | cut -f1)
+        song_title=$(printf '%s' "$alt_selected" | cut -f2)
+        artist_name=$(printf '%s' "$alt_selected" | cut -f3)
+        duration=$(printf '%s' "$alt_selected" | cut -f4)
+        image_url=$(printf '%s' "$alt_selected" | cut -f5)
+        album_title="YouTube"
+        song_id="yt_$video_id"
+        use_youtube=1
+        song_url="https://www.youtube.com/watch?v=$video_id"
+      fi
+
+      play_song
+      ;;
+    *) exit 0 ;;
+    esac
+  done
 fi
 
 printf "${CLEAR_LINE}${GREEN}Done!${NC}\n"
