@@ -525,45 +525,30 @@ show_thumbnail_kitty() {
     
     show_banner
     
-    # Large Responsive Layout (Left Aligned like thumb_test)
-    cols=$(tput cols 2>/dev/null || echo 80)
-    lines=$(tput lines 2>/dev/null || echo 24)
-    
-    # Use 60% of width, height proportional for square cells
-    img_w=$((cols * 60 / 100))
-    [ $img_w -lt 40 ] && img_w=40
-    img_h=$((img_w / 2)) # Adjust for terminal cell aspect ratio
-    
-    # Cap height to avoid pushing text off-screen
-    max_h=$((lines - 12))
-    [ $img_h -gt $max_h ] && [ $max_h -gt 10 ] && img_h=$max_h
-    
     x=2 # Small left margin
-    y=6 # Start under banner
+    y=5 # Start under banner
+    img_w=35
+    img_h=20
     
     # Display using Kitty protocol
     if command -v "kitten" >/dev/null 2>&1; then
-        kitten icat --align=left --place="${img_w}x${img_h}@${x}x${y}" "$thumb_file" 2>/dev/null || \
+        kitten icat --align=left --place="${img_w}x${img_h}@${x}x${y}" "$thumb_file" </dev/tty 2>/dev/null || \
             display_kitty_direct "$thumb_file" "$img_w" "$img_h"
     else
         display_kitty_direct "$thumb_file" "$img_w" "$img_h"
     fi
     
-    # Metadata block positioned relative to image height
+    # Position cursor after image and show song info
     info_y=$((y + img_h + 1))
-    info_x=2
-    printf "\033[%d;%dH" "$info_y" "$info_x"
+    printf "\033[%d;1H" "$info_y"
     
-    printf "${CYAN}┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓${NC}\n"
-    printf "\033[$((info_y+1));%dH${CYAN}┃${NC} ${GREEN}${ICON_PLAY} NOW PLAYING${NC}\033[$((info_y+1));$((info_x+50))H${CYAN}┃${NC}\n" "$info_x"
-    printf "\033[$((info_y+2));%dH${CYAN}┣━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┫${NC}\n" "$info_x"
-    printf "\033[$((info_y+3));%dH${CYAN}┃${NC} ${WHITE}TITLE:  %-38.38s${NC} ${CYAN}┃${NC}\n" "$info_x" "$title"
-    printf "\033[$((info_y+4));%dH${CYAN}┃${NC} ${WHITE}ARTIST: %-38.38s${NC} ${CYAN}┃${NC}\n" "$info_x" "$artist"
-    printf "\033[$((info_y+5));%dH${CYAN}┃${NC} ${BLUE}SOURCE: %-38.38s${NC} ${CYAN}┃${NC}\n" "$info_x" "${album_title:-JioSaavn}"
-    printf "\033[$((info_y+6));%dH${CYAN}┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛${NC}\n" "$info_x"
+    printf "  ${GREEN}${ICON_MUSIC} Song Details:${NC}\n"
+    printf "     ${WHITE}♫ Title:  %s${NC}\n" "$title"
+    printf "     ${WHITE}${ICON_ARTIST} Artist: %s${NC}\n" "$artist"
+    printf "     ${BLUE}${ICON_ALBUM} Source: %s${NC}\n\n" "${album_title:-JioSaavn}"
     
     # Set playback status cursor position
-    printf "\033[$((info_y+8));1H"
+    printf "\033[$((info_y+6));1H"
     
     echo "$thumb_file" > "$temp_dir/current_image"
 }
