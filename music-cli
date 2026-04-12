@@ -56,6 +56,10 @@ launcher() {
         external_menu "$1" "$2" "$external_menu_args"
     fi
 }
+format_results() {
+    # Extract Index, Title, Artist, Album, Duration for clean rofi display
+    cut -f1,3,4,5,6 | awk -F'\t' '{printf "%-5s %-40.40s %-25.25s %-20.20s %s\n", $1, $2, $3, $4, $5}'
+}
 
 nth() {
     stdin=$(cat -)
