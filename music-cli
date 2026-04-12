@@ -26,6 +26,31 @@ ICON_RADIO='📻'
 #Clear Line
 CLEAR_LINE='\033[2K\r'
 
+sanitize_filename() {
+    printf '%s' "$1" | tr '/' '_' | tr '?' '_' | tr '"' '_' | tr '<' '_' | tr '>' '_' | tr '|' '_' | tr '*' '_'
+}
+
+JIOSAAVN_API="https://www.jiosaavn.com/api.php"
+
+# Global Configuration & Setup Defaults
+agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:109.0) Gecko/20100101 Firefox/121.0"
+download_dir="${MUSIC_CLI_DOWNLOAD_DIR:-$HOME/Music/music-cli}"
+quality="${MUSIC_CLI_QUALITY:-320}"
+play_in_background="${MUSIC_CLI_BACKGROUND:-0}"
+record_while_playing=0
+force_download=0
+update=0
+album_search=0
+use_external_menu="${MUSIC_CLI_EXTERNAL_MENU:-0}"
+external_menu_args="${MUSIC_CLI_ROFI_ARGS:-}"
+use_youtube_fallback="${MUSIC_CLI_YOUTUBE_FALLBACK:-1}"
+use_youtube=0
+loop_enabled=0
+show_thumbnails="${MUSIC_CLI_SHOW_THUMBNAILS:-1}"
+hist_dir="${MUSIC_CLI_HIST_DIR:-${XDG_STATE_HOME:-$HOME/.local/state}/music-cli}"
+[ ! -d "$download_dir" ] && mkdir -p "$download_dir"
+[ ! -d "$hist_dir" ] && mkdir -p "$hist_dir"
+
 show_banner() {
     clear
     printf "${BLUE}┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓${NC}\n"
@@ -215,7 +240,7 @@ search_albums() {
     # URL encode the query
     encoded_query=$(printf '%s' "$query" | sed 's/ /+/g')
 
-    response=$(curl -s "https://www.jiosaavn.com/api.php?p=1&q=$encoded_query&_format=json&_marker=0&api_version=4&ctx=web6dot0&n=20&__call=search.getAlbumResults")
+    response=$(curl -s "${JIOSAAVN_API}?p=1&q=$encoded_query&_format=json&_marker=0&api_version=4&ctx=web6dot0&n=20&__call=search.getAlbumResults")
 
     printf '%s' "$response" | jq -r '.results[]? | [.perma_url, .title, (.subtitle // "Unknown Artist"), .year, (.more_info.song_count // "0"), ((.image // "") | sub("150x150"; "500x500") | sub("50x50"; "500x500"))] | @tsv' |
         nl -w2 -s$'\t' | sed 's/^[[:space:]]*//'
@@ -224,7 +249,7 @@ search_albums() {
 get_album_songs() {
     album_token="$1"
 
-    response=$(curl -s "https://www.jiosaavn.com/api.php?__call=webapi.get&token=$album_token&type=album&includeMetaTags=0&ctx=wap6dot0&api_version=4&_format=json&_marker=0")
+    response=$(curl -s "${JIOSAAVN_API}?__call=webapi.get&token=$album_token&type=album&includeMetaTags=0&ctx=wap6dot0&api_version=4&_format=json&_marker=0")
 
     printf '%s' "$response" | jq -r '.list[]? | [.id, .title, (.more_info.artistMap.primary_artists[0].name // "Unknown Artist"), (.more_info.album // "Unknown Album"), (.more_info.duration // "0"), (((.image // .more_info.image // "") | sub("150x150"; "500x500") | sub("50x50"; "500x500")))] | @tsv' |
         nl -w2 -s$'\t' | sed 's/^[[:space:]]*//'
@@ -278,7 +303,7 @@ play_youtube_playlist() {
 }
 
 get_radio_stations() {
-    curl -s 'https://www.jiosaavn.com/api.php?__call=webradio.getFeaturedStations&api_version=4&_format=json&_marker=0&ctx=web6dot0&languages=english' |
+    curl -s '${JIOSAAVN_API}?__call=webradio.getFeaturedStations&api_version=4&_format=json&_marker=0&ctx=web6dot0&languages=english' |
         jq -r '.[] | objects | .id | select(. != null and . != "")' 2>/dev/null
 }
 
@@ -309,7 +334,7 @@ play_radio() {
     encoded_station=$(printf '%s' "$station_name" | sed 's/ /+/g')
 
     printf "${BLUE}%s Creating radio station...${NC}\n" "$ICON_SEARCH"
-    station_id=$(curl -s "https://www.jiosaavn.com/api.php?language=english&name=$encoded_station&api_version=4&_format=json&_marker=0&ctx=web6dot0&__call=webradio.createFeaturedStation" \
+    station_id=$(curl -s "${JIOSAAVN_API}?language=english&name=$encoded_station&api_version=4&_format=json&_marker=0&ctx=web6dot0&__call=webradio.createFeaturedStation" \
         | jq -r '.stationid // empty' 2>/dev/null)
 
     [ -z "$station_id" ] && die "Failed to create radio station for: $station_name"
@@ -319,7 +344,7 @@ play_radio() {
     next=1
 
     while true; do
-        songs=$(curl -s "https://www.jiosaavn.com/api.php?__call=webradio.getSong&stationid=$station_id&k=20&next=$next&api_version=4&_format=json&_marker=0&ctx=web6dot0" | \
+        songs=$(curl -s "${JIOSAAVN_API}?__call=webradio.getSong&stationid=$station_id&k=20&next=$next&api_version=4&_format=json&_marker=0&ctx=web6dot0" | \
         jq -r '
         .[]?
         | objects
@@ -372,7 +397,7 @@ search_music() {
     # URL encode the query
     encoded_query=$(printf '%s' "$query" | sed 's/ /+/g')
 
-    response=$(curl -s "https://www.jiosaavn.com/api.php?p=1&q=$encoded_query&_format=json&_marker=0&api_version=4&ctx=web6dot0&n=20&__call=search.getResults")
+    response=$(curl -s "${JIOSAAVN_API}?p=1&q=$encoded_query&_format=json&_marker=0&api_version=4&ctx=web6dot0&n=20&__call=search.getResults")
 
     printf '%s' "$response" | jq -r '.results[]? | [.id, .title, (.more_info.artistMap.primary_artists[0].name // "Unknown Artist"), (.more_info.album // "Unknown Album"), (.more_info.duration // "0"), (((.image // .more_info.image // "") | sub("150x150"; "500x500") | sub("50x50"; "500x500")))] | @tsv' |
         nl -w2 -s$'\t' | sed 's/^[[:space:]]*//'
@@ -381,7 +406,7 @@ search_music() {
 get_song_details() {
     song_id="$1"
 
-    response=$(curl -s "https://www.jiosaavn.com/api.php?__call=song.getDetails&pids=$song_id&api_version=4&_format=json&_marker=0&ctx=web6dot0")
+    response=$(curl -s "${JIOSAAVN_API}?__call=song.getDetails&pids=$song_id&api_version=4&_format=json&_marker=0&ctx=web6dot0")
 
     printf '%s' "$response" | jq -r '.songs[0]'
 }
@@ -403,7 +428,7 @@ get_song_url() {
     # URL encode the encrypted URL
     encoded_url=$(printf '%s' "$encrypted_url" | sed 's/+/%2B/g;s/=/%3D/g;s/\//%2F/g')
 
-    response=$(curl -s "https://www.jiosaavn.com/api.php?__call=song.generateAuthToken&url=$encoded_url&bitrate=$bitrate&api_version=4&_format=json&ctx=web6dot0&_marker=0")
+    response=$(curl -s "${JIOSAAVN_API}?__call=song.generateAuthToken&url=$encoded_url&bitrate=$bitrate&api_version=4&_format=json&ctx=web6dot0&_marker=0")
 
     auth_url=$(printf '%s' "$response" | jq -r '.auth_url // empty')
 
@@ -449,7 +474,7 @@ download_song() {
     filename="$2"
 
     # Sanitize filename: remove problematic characters
-    safe_filename=$(printf '%s' "$filename" | tr '/' '_' | tr '?' '_' | tr '"' '_' | tr '<' '_' | tr '>' '_' | tr '|' '_' | tr '*' '_')
+    safe_filename=$(sanitize_filename "$filename")
     
     # Determine the output file path and extension
     if [ "$use_youtube" = 1 ]; then
@@ -587,7 +612,7 @@ play_song() {
     # If recording is enabled, download first then play the file
     if [ "$record_while_playing" = 1 ]; then
         filename="${artist_name} - ${song_title}"
-        filename=$(printf '%s' "$filename" | tr '/' '_' | tr '?' '_' | tr '"' '_' | tr '<' '_' | tr '>' '_' | tr '|' '_' | tr '*' '_')
+        filename=$(sanitize_filename "$filename")
         
         printf "${BLUE}⬇️  Downloading song...${NC}\n"
         download_song "$song_url" "$filename"
@@ -613,7 +638,7 @@ play_song() {
     case "$player_function" in
     download)
         filename="${artist_name} - ${song_title}"
-        filename=$(printf '%s' "$filename" | tr '/' '_' | tr '?' '_' | tr '"' '_' | tr '<' '_' | tr '>' '_' | tr '|' '_' | tr '*' '_')
+        filename=$(sanitize_filename "$filename")
         download_song "$song_url" "$filename"
         printf "${GREEN}Download successful or file already exists\n"
         player_status=$?
@@ -655,10 +680,7 @@ play_song() {
     unset song_url
     return $player_status
 }
-# Setup
-agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:109.0) Gecko/20100101 Firefox/121.0"
-
-# Cleanup on exit
+# Runtime Cleanup & Directories
 cleanup() {
     trap - EXIT INT TERM
     hide_thumbnail
@@ -666,32 +688,12 @@ cleanup() {
 }
 trap cleanup EXIT INT TERM
 
-download_dir="${MUSIC_CLI_DOWNLOAD_DIR:-$HOME/Music/music-cli}"
-[ ! -d "$download_dir" ] && mkdir -p "$download_dir"
-quality="${MUSIC_CLI_QUALITY:-320}"
-play_in_background="${MUSIC_CLI_BACKGROUND:-0}"
-record_while_playing=0
-
 case "$(uname -s)" in
 Darwin*) player_function="${MUSIC_CLI_PLAYER:-afplay}" ;;
 *ndroid*) player_function="${MUSIC_CLI_PLAYER:-android_vlc}" ;;
 *) player_function="${MUSIC_CLI_PLAYER:-$(where_mpv)}" ;;
 esac
 
-force_download=0
-update=0
-
-album_search=0
-
-use_external_menu="${MUSIC_CLI_EXTERNAL_MENU:-0}"
-external_menu_args="${MUSIC_CLI_ROFI_ARGS:-}"
-use_youtube_fallback="${MUSIC_CLI_YOUTUBE_FALLBACK:-1}"
-use_youtube=0
-loop_enabled=0
-show_thumbnails="${MUSIC_CLI_SHOW_THUMBNAILS:-1}"
-
-hist_dir="${MUSIC_CLI_HIST_DIR:-${XDG_STATE_HOME:-$HOME/.local/state}/music-cli}"
-[ ! -d "$hist_dir" ] && mkdir -p "$hist_dir"
 histfile="$hist_dir/music-history"
 [ ! -f "$histfile" ] && : >"$histfile"
 
