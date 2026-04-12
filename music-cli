@@ -318,6 +318,7 @@ play_radio() {
         songs=$(curl -s "https://www.jiosaavn.com/api.php?__call=webradio.getSong&stationid=$station_id&k=20&next=$next&api_version=4&_format=json&_marker=0&ctx=web6dot0" | \
         jq -r '
         .[]?
+        | objects
         | select(.song != null)
         | .song
         | [
@@ -331,7 +332,10 @@ play_radio() {
 
         [ -z "$songs" ] && sleep 2 && continue
 
-        printf '%s\n' "$songs" | while IFS=$'\t' read -r s_id s_title a_name e_url i_url; do
+        songs_tmp="/tmp/music_cli_radio_$$"
+        printf '%s\n' "$songs" > "$songs_tmp"
+
+        while IFS=$'\t' read -r s_id s_title a_name e_url i_url <&3; do
             [ -z "$s_id" ] || [ -z "$e_url" ] && continue
 
             song_id="$s_id"
@@ -347,10 +351,12 @@ play_radio() {
 
             use_youtube=0
 
-            play_song || exit 1
+            play_song || { rm -f "$songs_tmp"; exit 1; }
             update_history
             unset song_url
-        done || break
+        done 3< "$songs_tmp" || { rm -f "$songs_tmp"; break; }
+        
+        rm -f "$songs_tmp"
 
         next=$((next + 1))
     done
