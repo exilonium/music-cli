@@ -56,7 +56,7 @@ hist_dir="${MUSIC_CLI_HIST_DIR:-${XDG_STATE_HOME:-$HOME/.local/state}/music-cli}
 show_banner() {
     clear
     printf "${BLUE}┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓${NC}\n"
-    printf "${BLUE}┃${NC}   ${CYAN}${BOLD} MUSIC-CLI by exilonium${NC} ${DIM}v%s${NC}                         ${BLUE}┃${NC}\n" "$version_number"
+    printf "${BLUE}┃${NC}   ${CYAN}${BOLD} music-cli by exilonium${NC} ${DIM}v%s${NC}                         ${BLUE}┃${NC}\n" "$version_number"
     printf "${BLUE}┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛${NC}\n\n"
 }
 
@@ -271,15 +271,17 @@ play_youtube_playlist() {
     quality="$2"
 
     # Get all video IDs from playlist
-    mapfile -t video_ids < <(yt-dlp --flat-playlist --get-id "$playlist_url" 2>/dev/null)
+    video_ids=$(yt-dlp --flat-playlist --get-id "$playlist_url" 2>/dev/null)
 
-    if [ ${#video_ids[@]} -eq 0 ]; then
+    if [ -z "$video_ids" ]; then
         die "No videos found in playlist!"
     fi
 
-    printf "${BLUE}Found %d videos in playlist.${NC}\n" "${#video_ids[@]}"
+    total=$(printf '%s\n' "$video_ids" | wc -l | tr -d ' ')
+    printf "${BLUE}Found %d videos in playlist.${NC}\n" "$total"
 
-    for vid in "${video_ids[@]}"; do
+    printf '%s\n' "$video_ids" | while IFS= read -r vid; do
+        [ -z "$vid" ] && continue
         video_id="$vid"
         song_id="yt_${vid}"
         use_youtube=1
@@ -745,7 +747,7 @@ while [ $# -gt 0 ]; do
             artist_name=${song_info%% - *}
             song_title=${song_info#* - }
 
-            if [[ "$song_id" == yt_* ]]; then
+            case "$song_id" in yt_*)
                 use_youtube=1
                 video_id=${song_id#yt_}
                 song_url="https://www.youtube.com/watch?v=$video_id"
@@ -754,12 +756,13 @@ while [ $# -gt 0 ]; do
                 printf "${GREEN}%s Resuming:${NC} %s\n" "$ICON_RESUME" "$song_info"
                 play_song
                 exit 0
-            else
+            ;;
+            *)
                 printf "${BLUE}%s Getting song details...${NC}\n" "$ICON_SEARCH"
                 song_details=$(get_song_details "$song_id") || die "Failed to get song details!"
-                encrypted_url=$(jq -r '.more_info.encrypted_media_url // empty' <<<"$song_details")
-                duration=$(jq -r '.more_info.duration // "0"' <<<"$song_details")
-                image_url=$(jq -r '.image // empty | sub("150x150"; "500x500") | sub("50x50"; "500x500")' <<<"$song_details")
+                encrypted_url=$(printf '%s' "$song_details" | jq -r '.more_info.encrypted_media_url // empty')
+                duration=$(printf '%s' "$song_details" | jq -r '.more_info.duration // "0"')
+                image_url=$(printf '%s' "$song_details" | jq -r '.image // empty | sub("150x150"; "500x500") | sub("50x50"; "500x500")')
 
                 [ -z "$encrypted_url" ] && die "Could not get song details!"
 
@@ -769,7 +772,8 @@ while [ $# -gt 0 ]; do
                 printf "${GREEN}%s Resuming:${NC} %s\n" "$ICON_RESUME" "$song_info"
                 play_song
                 exit 0
-            fi
+            ;;
+            esac
         else
             die "No history found!"
         fi
