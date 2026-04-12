@@ -541,7 +541,7 @@ show_thumbnail_kitty() {
     title="$2"
     artist="$3"
     
-    [ "$show_thumbnails" = "0" ] && { show_banner; return 0; }
+    [ "$show_thumbnails" = "0" ] && return 0
     [ -z "$url" ] || [ "$url" = "null" ] && { show_banner; return 1; }
     
     temp_dir="/tmp/music-cli-thumbs"
