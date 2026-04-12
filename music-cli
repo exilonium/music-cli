@@ -699,6 +699,7 @@ play_song() {
 cleanup() {
   trap - EXIT INT TERM
   hide_thumbnail
+  clear
   exit 0
 }
 trap cleanup EXIT INT TERM
