@@ -75,6 +75,7 @@ Options:
   -r, --radio [station] Play radio station continuously (Pop, Jazz, Rock, Romance, etc.)
   -R, --record          Record while playing (saves stream to file using mpv cache)
   -a, --album           Search for an album to play
+  -nt, --no-thumb       Disable thumbnail display
   --rofi                Use rofi instead of fzf
   --rofi-args "args"    Use rofi with custom arguments (automatically enables --rofi)
   -h, --help            Show this help
