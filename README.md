@@ -14,18 +14,16 @@ Search, stream, and download songs from **JioSaavn** and **YouTube** - right fro
 * 🔄 Loop songs, background playback, and fallback between JioSaavn ↔ YouTube
 * 🖥️ Choose between **fzf** or **rofi** as menu UI with custom rofi styling
 
-## 📦 Dependencies
-
-Make sure the following are installed:
-
-* [`curl`](https://curl.se/)
-* [`jq`](https://stedolan.github.io/jq/)
-* [`fzf`](https://github.com/junegunn/fzf) **or** [`rofi`](https://github.com/davatorium/rofi)
-* [`yt-dlp`](https://github.com/yt-dlp/yt-dlp)
-* [`aria2c`](https://aria2.github.io/)
-* [`mpv`](https://mpv.io/)
-
 ## 🚀 Installation
+
+one click install (recommended)
+
+``` bash
+
+curl -fsSL https://raw.githubusercontent.com/exilonium/music-cli/main/install.sh | bash
+```
+
+manual install below
 
 Clone the repo and make the script executable:
 
@@ -53,6 +51,17 @@ Now run with:
 ```bash
 music-cli believer
 ```
+
+## 📦 Dependencies
+
+Make sure the following are installed:
+
+* [`curl`](https://curl.se/)
+* [`jq`](https://stedolan.github.io/jq/)
+* [`fzf`](https://github.com/junegunn/fzf) **or** [`rofi`](https://github.com/davatorium/rofi)
+* [`yt-dlp`](https://github.com/yt-dlp/yt-dlp)
+* [`aria2c`](https://aria2.github.io/)
+* [`mpv`](https://mpv.io/)
 
 ## 🎮 Usage
 
