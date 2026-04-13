@@ -1,6 +1,6 @@
 #!/bin/sh
 
-version_number="1.1.0"
+version_number="1.1.1"
 
 # Colors and UI Icons
 BOLD='\033[1m'
@@ -128,6 +128,7 @@ die() {
 }
 
 help_info() {
+  trap - EXIT INT TERM # to not cleanup after showing this
   printf "
     Usage:
     %s [options] [query]
@@ -188,6 +189,7 @@ help_info() {
 }
 
 version_info() {
+  trap - EXIT INT TERM # to not cleanup after showing this
   printf "%s\n" "$version_number"
   exit 0
 }
