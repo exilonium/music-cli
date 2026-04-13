@@ -136,6 +136,11 @@ Any valid rofi arguments can be passed through `--rofi-args`. This automatically
 * Automatically updated after each play
 * Supports `--continue` to resume last played track
 
+## 🫶 Contributing
+
+* Any feature request or merge request is really welcome.
+* you can see the thumb_test to see how are we fetching the api for thumbnail.
+
 ## 🙌 Credits
 
 * Inspired by [ani-cli](https://github.com/pystardust/ani-cli)
