@@ -1,13 +1,13 @@
 # 🎶 music-cli
 
 A simple **command-line music player & downloader** inspired by [ani-cli](https://github.com/pystardust/ani-cli).
-Search, stream, and download songs from **JioSaavn** and **YouTube** — right from your terminal.
+Search, stream, and download songs from **JioSaavn** and **YouTube** - right from your terminal.
 
 ## ✨ Features
 
 * ✨ High quality 320kbps audio streaming and downloading without logging in.
 * 🔎 Search and play songs from **JioSaavn** or **YouTube**
-* 🎧 Stream directly with **mpv**, **flatpak mpv**
+* 🎧 Stream directly with **mpv**.
 * ⬇️ Download songs in **MP3/MP4** (YouTube via `yt-dlp`, JioSaavn via `aria2c`)
 * 📜 Keeps **play history** for easy resume
 * 📺 Play **YouTube playlists** directly
